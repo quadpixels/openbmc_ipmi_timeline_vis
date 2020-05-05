@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<!-- Caution: Electron does not allow inline scripts or styles! -->
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+    <meta http-equiv="X-Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+    <title>IPMI Request Visualizer</title>
+  </head>
+  <body>
+    <div id="div_title"><span>
+    <b>IPMI Request Visualizer</b>
+		<br/>
+		<span><b>File name: </b></span>
+		<span id="file_name"></span>
+    <button id="btn_open_file">Open file</button>
+    </span></div>    
+
+    <hr/> 
+
+		<div id="div_group_by">Group IPMI Requests by:
+    <span>
+    <input type="checkbox" id="c1" value="NetFN" checked>NetFN</input>
+    <input type="checkbox" id="c2" value="CMD"     checked>CMD</input>
+    </span>
+		</div>
+      
+		<div id="div_canvas">
+    <canvas id="my_canvas" width="1400" height="400">
+		</div>
+    </canvas>
+
+		<div id="div_navi_and_replay">
+			<div>
+			  <span>
+				Navigation Control:
+				<button id="btn_zoom_in">Zoom In</button>
+				<button id="btn_zoom_out">Zoom Out</button>
+				<button id="btn_pan_left">&lt;&lt;</button>
+				<button id="btn_pan_right">&gt;&gt;</button>
+				<button id="btn_zoom_reset">Reset</button>
+				</span>
+			</div>
+			<div>Keyboard: [Left]/[right] arrow keys to pan; [Up]/[down] arrow keys to zoom in/out; Hold [shift] to move faster<br/>Mouse: [Left click]: highlight an interval; [wheel up/down]: zoom in/out; click overflow triangles to warp to out-of-viewport requests
+			</div>
+			<div id="highlight_hint">Click highlighted region to zoom into the region</div>
+			<br/>
+			<div id="ipmi_replay">
+				<span>Generate replay commands for the </span><span id="highlight_count">0</span><span> highlighted IPMI requests:</span>
+				<br/>
+				<span>For replaying through "ipmitool" on host or BMC:
+				<button id="gen_replay_ipmitool1">Individual calls</button>
+				<button id="gen_replay_ipmitool2">exec command list</button></span>
+				<br/>
+				<span>For replaying through "busctl" on BMC:
+				<button id="gen_replay_ipmid_legacy">Legacy Interface (for btbridged)</button>
+				<button id="gen_replay_ipmid_new">New Interface (for kcsbridged)</button></span>
+				<textarea rows="10" cols="150" id="ipmi_replay_output"></textarea>
+			</div>
+		</div> <!-- navi and replay -->
+    <br/>
+
+    <!-- You can also require other files to run in this process -->
+    <script src="./dummy_data.js"></script>
+    <script src="./ipmi_timeline_vis.js"></script>
+    <script src="./ipmi_parse.js"></script>
+    <script src="./renderer.js"></script>
+		<link rel="stylesheet" href="./ipmi_vis.css">
+  </body>
+</html>

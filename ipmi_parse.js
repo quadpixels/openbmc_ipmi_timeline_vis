@@ -111,7 +111,10 @@ function munchLegacyMessageEnd(lines, i, in_flight, parsed_entries) {
 	let serial = x[0]; let j = x[1]
 
   let entry = null
-	if (serial in in_flight) { entry = in_flight[serial] }
+	if (serial in in_flight) { 
+      entry = in_flight[serial]
+      delete in_flight[serial]
+    }
   else { return [null, i] }
 
 	entry.end_usec = ts

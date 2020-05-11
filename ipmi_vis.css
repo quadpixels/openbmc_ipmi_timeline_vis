@@ -2,10 +2,19 @@
   text-align: center
 }
 
-#my_canvas {
+#my_canvas, #capture_info {
   border: 1px grey dashed
 }
 
 #ipmi_replay_output {
   margin: auto
+}
+
+#title_capture, #title_open_file, #title_mode_select, #title_capture_info {
+	margin: auto;
+	text-align: center
+}
+
+#ipmi_replay {
+	display: none
 }

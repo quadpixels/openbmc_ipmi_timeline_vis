@@ -1,6 +1,15 @@
 const { dialog } = require("electron").remote
 const { fs     } = require("file-system")
 
+var btn_start_capture = document.getElementById("btn_start_capture")
+var select_capture_mode = document.getElementById("select_capture_mode")
+var capture_info = document.getElementById("capture_info")
+
+var radio_open_file = document.getElementById("radio_open_file")
+var radio_capture   = document.getElementById("radio_capture")
+var title_open_file = document.getElementById("title_open_file")
+var title_capture   = document.getElementById("title_capture")
+
 // Set up Electron-related stuff here; Electron does not allow inlining button events
 document.getElementById("c1").addEventListener("click", OnGroupByConditionChanged) // NetFN
 document.getElementById("c2").addEventListener("click", OnGroupByConditionChanged) // CMD
@@ -21,11 +30,24 @@ document.getElementById("btn_stop_capture").addEventListener("click", function()
 	StopCapture()
 })
 document.getElementById("select_capture_mode").addEventListener("click", OnCaptureModeChanged)
+radio_open_file.addEventListener("click", OnAppModeChanged)
+radio_capture.addEventListener("click", OnAppModeChanged)
 
-var btn_start_capture = document.getElementById("btn_start_capture")
-var select_capture_mode = document.getElementById("select_capture_mode")
-var capture_info = document.getElementById("capture_info")
+radio_capture.click()
 
+// App mode: open file or capture
+function OnAppModeChanged() {
+	title_open_file.style.display = "none"
+	title_capture.style.display = "none"
+  if (radio_open_file.checked) {
+		title_open_file.style.display = "block"
+	}
+	if (radio_capture.checked) {
+		title_capture.style.display = "block"
+	}
+}
+
+// Capture mode: Live capture or staged capture
 function OnCaptureModeChanged() {
 	let x = select_capture_mode
 	let i = capture_info
@@ -56,6 +78,7 @@ function OnCaptureStart() {
 function OnCaptureStop() {
 	btn_start_capture.disabled = false
 	select_capture_mode.disabled = false
+	text_hostname.disabled = false
 }
 
 // Todo: change to async
@@ -147,6 +170,7 @@ let IpmiVizHistogramImageData =  { }; // Image data for rendered histogram
 // theta: top and bottom portion to cut
 function ComputeHistogram(num_buckets = 30, is_free_x = true) {
   let global_lb = Infinity, global_ub = -Infinity
+	IpmiVizHistogramImageData = { }
 	// Global minimal and maximal values
 	for (let i=0; i<Intervals.length; i++) {
 		let interval = Intervals[i]

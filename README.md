@@ -1,18 +1,8 @@
-This program visualizes IPMI traffic dumped on a BMC running OpenBMC. It allows the user to pan, zoom and highlight the timeline, inspect the distribution of the time it takes ipmid to process the message, as well as generate commands that can talk to `ipmid` or `ipmitool` to replay those IPMI requests.
+This program captures & visualizes IPMI traffic on a BMC running OpenBMC. It allows the user to capture & view IPMI requests in a time line format, as well as generate commands that can talk to `ipmid` or `ipmitool` to replay those IPMI requests.
 
-Its inputs are DBus traffic dumps that involve DBus signals and method calls launched against the IPMI daemon (ipmid). To be specific, there are two possible ways:
+## Build
 
-- For the "legacy" interface:
-  - A request is sent to IPMID by a DBus signal "ReceivedMessage". (The "ReceivedMessage" signal name actually means the bridge daemon (`btbridged`) "receives" a message from the "host".)
-  - The response is a method call "sendMessage" which means the bridge daemon sends a message response back to the "host".
-
-- For the "new" interface:
-  - A request is a DBus method call "execute".
-  - The IPMI response is just the method response of this method call.
-
-The input to this program is a text dump of DBus messages that may be obtained by the "dbus-monitor" command.
-
-This program is based on Electron; it should be compatible with Windows, Linux, Mac and ChromeOS's Linux environment.
+This program is based on Electron, and should be compatible with Windows, Linux, Mac and ChromeOS's Linux environment.
 
 To build and run, a user would first need to install node.js and npm (Node.js package manager). To install node.js on a Ubuntu/Debian-based system:
 
@@ -37,6 +27,21 @@ With `npm` and `node.js` installed, enter the root directory of this project, an
 
 2. `npm start`
 
-1440x900 (WSXGA+) or higher screen resolution (or "logic screen size" for high-DPI displays) is recommended.
+## Run
+
+### Open existing file
+
+1. Select "Open an existing file"
+2. Click "Open file"
+3. Choose a file (The file should be a text file, and its contents should be dbus-monitor outputs)
+
+### Capture
+
+1. Select "Capture on a BMC"
+2. Fill the Megapede client name in the text box
+3. Choose a capture mode (live or staged)
+4. Click "start capture" and watch the status updates
+5. Click "stop capture" when done
+6. If something happens, manual clean-up might be needed, such as stopping dbus-monitor on the BMC
 
 ![Image](./scrnshot.png)

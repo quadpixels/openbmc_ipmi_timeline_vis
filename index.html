@@ -10,22 +10,36 @@
   </head>
   <body>
     <div id="div_title"><span>
-    <b>IPMI Request Visualizer</b>
-		<br/>
-		<span><b>File name: </b></span>
-		<span id="file_name"></span>
-    <button id="btn_open_file">Open file</button>
-		<br />
-		<span><b>Capture: </b></span>
-		<input type="text" id="text_hostname" value="mvnn3"></input>
-    <button id="btn_start_capture">Start Capture</button>
-    <button id="btn_stop_capture">Stop Capture</button>
-		<select id="select_capture_mode">
-			<option value="live">Live</option>
-			<option value="staged">Staged</option>
-		</select>
-		<span id="capture_info"></span>
-    </span></div>    
+    <b>IPMI Request Capturer &amp; Visualizer</b>
+		</span>
+		</div>
+    <div id="title_mode_select">
+			<span>
+				<input type="radio" id="radio_open_file" name="mode" value="open_file"></input>
+  			<label for="radio_open_file">Open an existing file</label>
+  			<input type="radio" id="radio_capture" name="mode" value="capture"></input>
+  			<label for="radio_capture">Capture on a BMC</label>
+      </span>
+		</div>
+		<div id="title_open_file">
+			<span><b>File name: </b></span>
+			<span id="file_name"></span>
+			<button id="btn_open_file">Open file</button>
+			<br />
+		</div>
+		<div id="title_capture">
+			<span><b>Capture: </b></span>
+			<input type="text" id="text_hostname" value="mvnn3"></input>
+			<button id="btn_start_capture">Start Capture</button>
+			<button id="btn_stop_capture">Stop Capture</button>
+			<select id="select_capture_mode">
+				<option value="live">Live</option>
+				<option value="staged">Staged</option>
+			</select>
+    </div>    
+		<div id="title_capture_info">
+			<span id="capture_info">Info will appear here</span>
+		</div>
 
     <hr/> 
 
@@ -65,7 +79,7 @@
 				<br/>
 				<span>For replaying through "busctl" on BMC:
 				<button id="gen_replay_ipmid_legacy">Legacy Interface (for btbridged)</button>
-				<button id="gen_replay_ipmid_new">New Interface (for kcsbridged)</button></span>
+				<button id="gen_replay_ipmid_new">New Interface (for kcsbridged / netipmid)</button></span>
 				<textarea rows="10" cols="150" id="ipmi_replay_output"></textarea>
 			</div>
 		</div> <!-- navi and replay -->

@@ -14,6 +14,17 @@ var g_child
 var g_rz
 
 var g_capture_live = true
+var g_dbus_capture_tarfile_size = 0
+
+// Delimiters: ">>>>>>" and "<<<<<<"
+function ExtractMyDelimitedStuff(x, parse_as = undefined) {
+  let i0 = x.lastIndexOf(">>>>>>"), i1 = x.lastIndexOf("<<<<<<")
+	if (i0 != -1 && i1 != -1) {
+    let ret = x.substr(i0+6, i1-i0-6)
+		if (parse_as == undefined) return ret
+		else if (parse_as == "int") return parseInt(ret)
+	} else return null
+}
 
 function streamWrite(stream, chunk, encoding='utf8') {
 	return new Promise((resolve, reject) => {
@@ -55,25 +66,49 @@ function ExtractTarFile() {
 }
 
 async function OnTransferCompleted() {
-  g_rz.kill("SIGINT")
-	g_child.kill("SIGINT")
+	setTimeout(function() {
+		g_rz.kill("SIGINT")
+		g_child.kill("SIGINT")
+	}, 5000)
 
 	capture_info.textContent = "Loaded the capture file"
 	OnCaptureStop()
 	ExtractTarFile()
 }
 
+// Example output from stderr:
+// ^M Bytes received:    2549/   2549   BPS:6370
 async function LaunchRZ() {
   // On the Host
+	
+	// Remove existing file
+	const file_names = [ "DBUS_MONITOR", "DBUS_MONITOR.tar.gz" ]
+	try {
+		for (let i=0; i<2; i++) {
+		  const fn = file_names[i]
+		  if (fs.existsSync(fn)) {
+        fs.unlinkSync(fn) // unlink is basically rm
+				console.log("Removed file: " + fn)
+			}
+		}
+	} catch(err) { }
+
 	g_rz = spawn("rz", ["-vv", "-b", "-E"], {shell:true})
   g_rz.stdout.on("data", (data)=>{
-		console.log("[rz] received " + data.length + " B")
+//		console.log("[rz] received " + data.length + " B")
+//		console.log("[rz] " + data + " ")
 		g_child.stdin.write(data)
 	});
 	g_rz.stderr.on("data", (data)=>{
 		console.log("[rz] error: " + data)
+		let s = data.toString()
+		let idx = s.lastIndexOf("Bytes received:")
+		if (idx != -1) { capture_info.textContent = s.substr(idx) }
 		if (data.indexOf("Transfer complete") != -1) {
 			OnTransferCompleted()
+		} else if (data.indexOf("Transfer incomplete") != -1) {
+			// todo: retry transfer
+			capture_info.textContent = "Transfer incomplete"
 		}
 	});
 	await Promise.all([
@@ -87,9 +122,15 @@ function ClearAllPendingTimeouts() {
 	for (; id >= 0; id--) clearTimeout(id)
 }
 
+function StartDbusMonitorFileSizePollLoop() {
+  QueueDbusMonitorFileSize(5)
+}
+
 function QueueDbusMonitorFileSize(secs = 5) {
 	setTimeout(function() {
 		g_child.stdin.write("a=`ls -l DBUS_MONITOR | awk '{print $5}'` ; echo \">>>>>>$a<<<<<<\"  \n\n\n\n")
+
+		QueueDbusMonitorFileSize(secs)
 	}, secs*1000)
 }
 
@@ -109,11 +150,24 @@ function StopCapture() {
 	}
 }
 
-async function StartCapture(host) {
+function QueueBMCConsoleHello(secs = 3) {
+	setTimeout(function() {
+		try {
+			//g_child.stdin.write("echo \"haha\" \n")
+			g_child.stdin.write("\n\n\n\n")
+			QueueBMCConsoleHello(secs)
+		} catch (err) {
+			console.log("g_child may have ended as intended")
+		}
+	}, secs*1000)
+}
 
+async function StartCapture(host) {
 	// Disable buttons
 	btn_start_capture.disabled  = true
 	select_capture_mode.disabled = true
+	text_hostname.disabled = true
+	capture_info.textContent = "Contacting BMC console ..."
 
 	// On the B.M.C.
 	let last_t = currTimestamp()
@@ -122,19 +176,23 @@ async function StartCapture(host) {
 //  g_child = spawn("ssh", ["localhost"], {shell:true});
 	g_child = spawn("megapede_client", [host], {shell:true})
   g_child.stdout.on('data', async function(data) {
+
+//		QueueBMCConsoleHello()
+
 		var t = currTimestamp()
-		console.log("[bmc] " + data)
 		{
 			switch (g_capture_state) {
 				case "not started": 
 					attempt ++
 					console.log("attempt " + attempt)
  					g_child.stdin.write("echo \"haha\" \n")
-//					await streamWrite(g_child.stdin, "whoami \n")
+					await streamWrite(g_child.stdin, "whoami \n")
 					let idx = data.indexOf("haha")
 					if (idx != -1) {
+						ClearAllPendingTimeouts()
 						OnCaptureStart() // Successfully logged on, start
 						g_capture_state = "dbus monitor start"
+						capture_info.textContent = "Reached BMC console"
 					} else {
             console.log("idx=" + idx)
 					}
@@ -143,39 +201,36 @@ async function StartCapture(host) {
 					if (g_capture_mode == "live") {
 						// Make sure console bit rate is greater than
 						//   the speed outputs are generated!
-						g_child.stdin.write("dbus-monitor --system | grep \"sendMessage\\|ReceivedMessage\" -A7 \n")
+//						g_child.stdin.write("dbus-monitor --system | grep \"sendMessage\\|ReceivedMessage\" -A7 \n")
+						ClearAllPendingTimeouts()
+						g_child.stdin.write("dbus-monitor --system | grep \"member=execute\\|method return\" -A7 \n")
+						capture_info.textContent = "Started dbus-monitor for live capture"
 					} else {
-						g_child.stdin.write("dbus-monitor --system | grep \"sendMessage\\|ReceivedMessage\" -A7 > /run/initramfs/DBUS_MONITOR & \n\n\n")
-						/*
-						setTimeout(function() {
-							g_child.stdin.write("\x03  ")
-							setTimeout(function() {
-								g_capture_state = "dbus monitor end"
-								g_child.stdin.write("echo \">>>>\"; ls -l  /run/initramfs/HAHA | awk '{print $5}' ; echo \"<<<<\" \n\n\n\n")
-							}, 1000) // Give BMC 2s to react
-						}, 10000)
-						*/
-						QueueDbusMonitorFileSize(2)
+//						g_child.stdin.write("dbus-monitor --system | grep \"sendMessage\\|ReceivedMessage\" -A7 > /run/initramfs/DBUS_MONITOR & \n\n\n")
+						g_child.stdin.write("dbus-monitor --system > /run/initramfs/DBUS_MONITOR & \n\n\n")
+						StartDbusMonitorFileSizePollLoop()
+						capture_info.textContent = "Started dbus-monitor for staged capture"
 					}
 					g_capture_state = "dbus monitor running"
 					break
 				case "dbus monitor running":
 					if (g_capture_mode == "staged") {
 						let s = data.toString()
-						let i0 = s.lastIndexOf(">>>>>>"), i1 = s.lastIndexOf("<<<<<<")
-						if (i0 != -1 && i1 != -1) {
-              let tmp = s.substr(i0+6, i1-i0-6)
-							let sz = parseInt(tmp) / 1024
-							capture_info.textContent = "Uncompressed dbus capture size: " + sz + " KiB"
-							QueueDbusMonitorFileSize(5)
+						let tmp = ExtractMyDelimitedStuff(s, "int")
+						if (tmp != undefined) {
+							let sz = Math.floor(parseInt(tmp) / 1024)
+							if (!isNaN(sz)) {
+								capture_info.textContent = "Raw Dbus capture size: " + sz + " KiB"
+							} else { // This can happen if the output is cut by half & may be fixed by queuing console outputs
+							}
 						}
 					}
-					console.log("monitor result updated")
 					AppendToParseBuffer(data.toString())
 					MunchLines()
 					UpdateLayout()
+					ComputeHistogram()
 					break
-				case "dbus monitor end":
+				case "dbus monitor end": // Todo: add speed check
 					let s = data.toString()
 					let i0 = s.lastIndexOf(">>>>"), i1 = s.lastIndexOf("<<<<")
 					if (i0 != -1 && i1 != -1) {
@@ -192,7 +247,7 @@ async function StartCapture(host) {
 					break
 				case "sz sending":
 					console.log("Received a chunk of size " + data.length)
-					capture_info.textContent = "Received a chunk of size " + data.length
+//					capture_info.textContent = "Received a chunk of size " + data.length
 					g_rz.stdin.write(data)
 					break
 				case "stopping":
@@ -207,9 +262,7 @@ async function StartCapture(host) {
 							// Log mode
 						}
 					} else if (g_capture_mode == "staged") {
-						
             ClearAllPendingTimeouts()
-
 						if (t.lastIndexOf("<<<<<<") != -1) {
 							g_capture_state = "compressing"
 							g_child.stdin.write("echo \">>>>>>\" && cd /run/initramfs && tar cfz DBUS_MONITOR.tar.gz DBUS_MONITOR && echo \"<<<<<<\" \n\n\n\n")
@@ -218,14 +271,21 @@ async function StartCapture(host) {
 					}
 					break
 				case "compressing":
-					g_child.stdin.write("echo \">>>>>>\" && ls -l HOHOHO | awk '{print $5}' && echo \"<<<<<<\"   \n\n\n\n")
+					g_child.stdin.write("a=`ls -l /run/initramfs/DBUS_MONITOR.tar.gz | awk '{print $5}'` && echo \">>>>>>$a<<<<<<\"   \n\n\n\n")
 					g_capture_state = "dbus_monitor size"
 					capture_info.textContent = "Obtaining size of compressed dbus dump"
 		      break
 				case "dbus_monitor size":
           // Starting RZ
+					let tmp = ExtractMyDelimitedStuff(data.toString(), "int")
+					console.log("dbus_monitor size tmp=" + tmp)
+					if (tmp != undefined) {
+						g_dbus_capture_tarfile_size = tmp
+						capture_info.textContent = "Starting rz and sz, file size: " + Math.floor(tmp/1024) + " KiB"
+					} else {
+					  capture_info.textContent = "Starting rz and sz"
+          }
 				  g_capture_state = "sz start"
-					capture_info.textContent = "Starting rz and sz"
 					g_child.stdin.write("sz -w 65536 -y /run/initramfs/DBUS_MONITOR.tar.gz\n")
 //				g_child.stdin.write("sz -w 65536 -y /tmp/haha\n")
 					g_capture_state = "sz sending"

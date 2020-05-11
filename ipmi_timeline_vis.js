@@ -13,6 +13,50 @@ document.getElementById("gen_replay_ipmitool1").addEventListener("click", functi
 document.getElementById("gen_replay_ipmitool2").addEventListener("click", function() { GenerateIPMIToolExecListReplay(HighlightedRequests) })
 document.getElementById("gen_replay_ipmid_legacy").addEventListener("click", function() { GenerateBusctlReplayLegacyInterface(HighlightedRequests) })
 document.getElementById("gen_replay_ipmid_new").addEventListener("click", function() { GenerateBusctlReplayNewInterface(HighlightedRequests) })
+document.getElementById("btn_start_capture").addEventListener("click", function() {
+	let h = document.getElementById("text_hostname").value
+	StartCapture(h)
+})
+document.getElementById("btn_stop_capture").addEventListener("click", function() {
+	StopCapture()
+})
+document.getElementById("select_capture_mode").addEventListener("click", OnCaptureModeChanged)
+
+var btn_start_capture = document.getElementById("btn_start_capture")
+var select_capture_mode = document.getElementById("select_capture_mode")
+var capture_info = document.getElementById("capture_info")
+
+function OnCaptureModeChanged() {
+	let x = select_capture_mode
+	let i = capture_info
+	let desc = ""
+	switch (x.value) {
+		case "live":
+      desc = "Live: read BMC's dbus-monitor console output directly"
+			g_capture_mode = "live"
+			break
+		case "staged":
+			desc = "Staged: Store BMC's dbus-monitor output in a file and transfer back for display"
+			g_capture_mode = "staged"
+			break
+	}
+  i.textContent = desc
+}
+
+function OnCaptureStart() {
+	switch (g_capture_state) {
+		case "not started":
+			capture_info.textContent = "dbus-monitor running on BMC"
+			break
+		default:
+			break
+	}
+}
+
+function OnCaptureStop() {
+	btn_start_capture.disabled = false
+	select_capture_mode.disabled = false
+}
 
 // Todo: change to async
 document.getElementById("btn_open_file").addEventListener("click", function() {

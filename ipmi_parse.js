@@ -15,6 +15,7 @@ function extractUsec(line) {
 // Returns [byte, i+1] if successful
 // Returns [null, i  ] if unsuccessful
 function munchByte(lines, i) {
+	if (i >= lines.length) { return [null, i] }
   let l = lines[i]
   let idx = l.indexOf("byte")
   if (idx != -1) {
@@ -39,10 +40,12 @@ function munchArrayOfBytes1(lines, i) {
 function munchArrayOfBytes2(lines, i) {
   let l = lines[i]
   let idx = l.indexOf("array of bytes [")
+	if (idx == -1) { idx = l.indexOf("array [") }
   if (idx != -1) {
     let j = i+1
     let payload = []
     while (true) {
+			if (j >= lines.length) { break }
       l = lines[j]
       let sp = l.trim().split(" ")
       let ok = true
@@ -63,6 +66,8 @@ function munchArrayOfBytes2(lines, i) {
 }
 
 function munchArrayOfBytes(lines, i) {
+	if (i >= lines.length) return [null, i]
+
   let x = munchArrayOfBytes1(lines, i)
 	if (x[0] != null) { return x }
 	x = munchArrayOfBytes2(lines, i)
@@ -147,24 +152,48 @@ function munchLegacyMessageEnd(lines, i, in_flight, parsed_entries) {
 	return [ entry, j ]
 }
 
-function ParseIPMIDump(data) {
-  console.log("data.length=" + data.length)
-  lines = data.split("\n")
-  console.log("" + lines.length + " lines")
-    
-  let in_flight_legacy = { }
-	let parsed_entries   = []
-  let i = 0
-  while (i<lines.length) {
-    let line = lines[i]
+// Parsing state
+let g_ipmi_parse_buf = ""
+let g_ipmi_parse_lines = []
+let g_ipmi_in_flight_legacy = { }
+let g_ipmi_parsed_entries = []
+function StartParseIPMIDump() {
+	g_ipmi_parse_lines = []
+  g_ipmi_parsed_entries = []
+  g_ipmi_in_flight_legacy = { }
+	g_ipmi_parse_buf = ""
+}
+function AppendToParseBuffer(x) { g_ipmi_parse_buf += x }
+function MunchLines() {
+	// 1. Extract all lines from the buffer
+	let chars_munched = 0
+	while (true) {
+		let idx = g_ipmi_parse_buf.indexOf("\n")
+		if (idx == -1) break
+		let l = g_ipmi_parse_buf.substr(0, idx)
+    g_ipmi_parse_lines.push(l)
+		g_ipmi_parse_buf = g_ipmi_parse_buf.substr(idx + 1)
+		chars_munched += (idx + 1)
+	}
+	console.log(chars_munched + " chars munched")
+
+	// 2. Parse as many lines as possible
+	let lidx_last = 0
+	let i = 0
+	while (i < g_ipmi_parse_lines.length) {
+    let line = g_ipmi_parse_lines[i]
     if (line.indexOf("interface=org.openbmc.HostIpmi") != -1 &&
         line.indexOf("member=ReceivedMessage") != -1) {
-			let x = munchLegacyMessageStart(lines, i)
-			let entry = x[0]; i = x[1];
-			if (entry != null) { in_flight_legacy[entry.serial] = entry }
+			let x = munchLegacyMessageStart(g_ipmi_parse_lines, i)
+			let entry = x[0];
+			if (i != x[1]) lidx_last = x[1] // Munch success!
+			i = x[1];
+			if (entry != null) { g_ipmi_in_flight_legacy[entry.serial] = entry }
     } else if (line.indexOf("interface=org.openbmc.HostIpmi") != -1 &&
                line.indexOf("member=sendMessage") != -1) {
-			let x = munchLegacyMessageEnd(lines, i, in_flight_legacy, parsed_entries);
+			let x = munchLegacyMessageEnd(g_ipmi_parse_lines, i, g_ipmi_in_flight_legacy, g_ipmi_parsed_entries);
+			if (i != x[1]) lidx_last = x[1] // Munch success!
+			i = x[1]
 
     } else if (line.indexOf("interface=xyz.openbmc_project.Ipmi.Server") != -1 &&
                line.indexOf("member=execute") != -1) {
@@ -173,17 +202,20 @@ function ParseIPMIDump(data) {
       console.log("maybe 2 end")
     }
     i++
-  }
+	}
+	g_ipmi_parse_lines = g_ipmi_parse_lines.slice(lidx_last,
+		g_ipmi_parse_lines.length) // Remove munched lines
+	console.log(lidx_last + " lines munched, |lines|=" + g_ipmi_parse_lines.length + ", |entries|=" + g_ipmi_parsed_entries.length, ", |inflight|=" + Object.keys(g_ipmi_in_flight_legacy).length)
+}
 
-	console.log("Number of parsed entries: " + parsed_entries.length)
-
-  if (parsed_entries.length > 0) {
+function UpdateLayout() {
+  if (g_ipmi_parsed_entries.length > 0) {
   	// Write to Data
-		let ts0 = parsed_entries[0].start_usec
-		let ts1 = parsed_entries[parsed_entries.length-1].end_usec
+		let ts0 = g_ipmi_parsed_entries[0].start_usec
+		let ts1 = g_ipmi_parsed_entries[g_ipmi_parsed_entries.length-1].end_usec
   	Data = []
-  	for (i=0; i<parsed_entries.length; i++) {
-  	  let entry = parsed_entries[i]
+  	for (i=0; i<g_ipmi_parsed_entries.length; i++) {
+  	  let entry = g_ipmi_parsed_entries[i]
   		let x = [ entry.netfn, entry.cmd, 
 			  parseInt(entry.start_usec - ts0),
 				parseInt(entry.end_usec   - ts0),
@@ -207,6 +239,12 @@ function ParseIPMIDump(data) {
 	}
 }
 
+function ParseIPMIDump(data) {
+	StartParseIPMIDump()
+	AppendToParseBuffer(data)
+	MunchLines()
+  UpdateLayout()
+}
 
 // Load dummy data
 function LoadDummyData() {

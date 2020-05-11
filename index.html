@@ -15,6 +15,16 @@
 		<span><b>File name: </b></span>
 		<span id="file_name"></span>
     <button id="btn_open_file">Open file</button>
+		<br />
+		<span><b>Capture: </b></span>
+		<input type="text" id="text_hostname" value="mvnn3"></input>
+    <button id="btn_start_capture">Start Capture</button>
+    <button id="btn_stop_capture">Stop Capture</button>
+		<select id="select_capture_mode">
+			<option value="live">Live</option>
+			<option value="staged">Staged</option>
+		</select>
+		<span id="capture_info"></span>
     </span></div>    
 
     <hr/> 
@@ -65,6 +75,7 @@
     <script src="./dummy_data.js"></script>
     <script src="./ipmi_timeline_vis.js"></script>
     <script src="./ipmi_parse.js"></script>
+    <script src="./ipmi_capture.js"></script>
     <script src="./renderer.js"></script>
 		<link rel="stylesheet" href="./ipmi_vis.css">
   </body>

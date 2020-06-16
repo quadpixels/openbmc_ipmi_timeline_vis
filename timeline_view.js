@@ -604,6 +604,9 @@ class TimelineView {
 			let numVisibleRequestsPerLine = [];
 			let totalSecondsPerLine = [];
 
+			// Range of Titles that were displayed
+			let title_start_idx = this.TitleStartIdx, title_end_idx = title_start_idx;
+			
 			for (let j=this.TitleStartIdx; j<this.Intervals.length; j++) {
 				ctx.textBaseline = "middle";
 				ctx.textAlign = "right";
@@ -774,6 +777,19 @@ class TimelineView {
 				y = y + LINE_SPACING;
 				numVisibleRequestsPerLine.push(numVisibleRequestsCurrLine);
 				totalSecondsPerLine.push(totalSecsCurrLine);
+
+				title_end_idx = j;
+				if (y > height) break;
+			}
+
+			// Draw a scroll bar on the left
+			if (!(title_start_idx == 0 && title_end_idx == this.Titles.length-1)) {
+				let nbreaks = this.Titles.length;
+				let y0 = title_start_idx * height / nbreaks;
+				let y1 = (1 + title_end_idx) * height / nbreaks;
+				if (this.is_dbus) ctx.fillStyle = "rgba(0,128,0,0.9)"
+				else ctx.fillStyle = "rgba(0,192,192,0.5)"
+				ctx.fillRect(0, y0, 4, y1-y0);
 			}
 
 			// Draw highlighted sections for the histograms

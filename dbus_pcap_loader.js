@@ -53,7 +53,7 @@ function TestFileRead() {
 	dbus_timeline_view.IsCanvasDirty = true;
 }
 
-TestFileRead();
+//TestFileRead();
 
 function MyFloatMillisToBigIntUsec(x) {
 	x = (""+x).split(".")

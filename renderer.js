@@ -7,11 +7,15 @@
 
 class Renderer {
 	constructor() {
-        let c = document.getElementById('my_canvas');
-		this.canvas = c;
-        this.width = c.width; this.height = c.height;
-		this.ctx = this.canvas.getContext('2d');
-        this.frame_count = 0;
+		let c1 = document.getElementById('my_canvas_ipmi');
+		let c2 = document.getElementById('my_canvas_dbus');
+		this.canvas1 = c1;
+		this.canvas2 = c2;
+		this.width1 = c1.width; this.height1 = c1.height;
+		this.width2 = c2.width; this.height2 = c2.height;
+		this.ctx1 = this.canvas1.getContext('2d');
+		this.ctx2 = this.canvas2.getContext('2d');
+		this.frame_count = 0;
 		this.addBindings();
 		this.addListeners();
 		this.update();
@@ -32,17 +36,19 @@ class Renderer {
                     window.innerWidth + " x " + 
                     window.innerHeight);
         if (false) {
-            this.width = window.innerWidth;
-            this.height = window.innerHeight;
-            this.canvas.width = this.width;
-            this.canvas.height = this.height;
+            this.width1 = window.innerWidth;
+            this.height1 = window.innerHeight;
+            this.canvas1.width = this.width1;
+            this.canvas1.height = this.height1;
         }
 	}
 
 	run() {
-        draw_timeline(this.ctx);
+        draw_timeline(this.ctx1);
+		draw_timeline_dbus(this.ctx2);
         window.requestAnimationFrame(this.run);
 	}
 }
 
 g_renderer = new Renderer();
+

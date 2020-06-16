@@ -18,3 +18,15 @@
 #ipmi_replay {
 	display: none
 }
+
+#div_canvas {
+	margin-top: 2px
+}
+
+#my_canvas_dbus, #span_group_by_dbus {
+	border: 1px #008000 solid
+}
+
+#my_canvas_ipmi, #span_group_by_ipmi {
+	border: 1px #00c0c0 solid
+}

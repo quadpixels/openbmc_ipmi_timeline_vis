@@ -1,9 +1,17 @@
 const { dialog } = require("electron").remote
 const { fs     } = require("file-system")
+const { util   } = require("util")
+const { exec   } = require("child_process")
 
-var btn_start_capture = document.getElementById("btn_start_capture")
+// Starting of time line (for aligning IPMI and DBus view as well as bring the first request to t=0)
+var StartingUsec_IPMI = undefined;
+
+// Main view object
+var ipmi_timeline_view = new TimelineView();
+
+var btn_start_capture   = document.getElementById("btn_start_capture")
 var select_capture_mode = document.getElementById("select_capture_mode")
-var capture_info = document.getElementById("capture_info")
+var capture_info        = document.getElementById("capture_info")
 
 var radio_open_file = document.getElementById("radio_open_file")
 var radio_capture   = document.getElementById("radio_capture")
@@ -13,19 +21,57 @@ var title_capture   = document.getElementById("title_capture")
 // Set up Electron-related stuff here; Electron does not allow inlining button events
 document.getElementById("c1").addEventListener("click", OnGroupByConditionChanged) // NetFN
 document.getElementById("c2").addEventListener("click", OnGroupByConditionChanged) // CMD
-document.getElementById("btn_zoom_in").addEventListener("click", function()  { BeginZoomAnimation(0.5)  }) // Zoom in button
-document.getElementById("btn_zoom_out").addEventListener("click", function() { BeginZoomAnimation(-1)   }) // Zoom out button
-document.getElementById("btn_pan_left").addEventListener("click", function() { BeginPanScreenAnimaton(-0.5) }) // Pan left
-document.getElementById("btn_pan_right").addEventListener("click", function() { BeginPanScreenAnimaton(0.5) }) // Pan right
-document.getElementById("btn_zoom_reset").addEventListener("click", function() { BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT) }) // Reset zoom
-document.getElementById("gen_replay_ipmitool1").addEventListener("click", function() { GenerateIPMIToolIndividualCommandReplay(HighlightedRequests) })
-document.getElementById("gen_replay_ipmitool2").addEventListener("click", function() { GenerateIPMIToolExecListReplay(HighlightedRequests) })
-document.getElementById("gen_replay_ipmid_legacy").addEventListener("click", function() { GenerateBusctlReplayLegacyInterface(HighlightedRequests) })
-document.getElementById("gen_replay_ipmid_new").addEventListener("click", function() { GenerateBusctlReplayNewInterface(HighlightedRequests) })
+
+// Zoom in button
+document.getElementById("btn_zoom_in").addEventListener("click", function() {
+	BeginZoomAnimation(0.5)
+	ipmi_timeline_view.BeginZoomAnimation(0.5)
+})
+
+// Zoom out button
+document.getElementById("btn_zoom_out").addEventListener("click", function() {
+	BeginZoomAnimation(-1)
+	ipmi_timeline_view.BeginZoomAnimation(-1)
+})
+
+// Pan left button
+document.getElementById("btn_pan_left").addEventListener("click", function() {
+	BeginPanScreenAnimaton(-0.5)
+	ipmi_timeline_view.BeginPanScreenAnimaton(-0.5)
+})
+
+// Pan right button
+document.getElementById("btn_pan_right").addEventListener("click", function() {
+	BeginPanScreenAnimaton(0.5)
+	ipmi_timeline_view.BeginPanScreenAnimaton(0.5)
+})
+
+// Reset zoom button
+document.getElementById("btn_zoom_reset").addEventListener("click", function() {
+	BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
+	ipmi_timeline_view.BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
+	dbus_timeline_view.BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
+})
+
+// Generate replay
+document.getElementById("gen_replay_ipmitool1").addEventListener("click", function() {
+	GenerateIPMIToolIndividualCommandReplay(HighlightedRequests);
+})
+document.getElementById("gen_replay_ipmitool2").addEventListener("click", function() {
+	GenerateIPMIToolExecListReplay(HighlightedRequests)
+})
+document.getElementById("gen_replay_ipmid_legacy").addEventListener("click", function() {
+	GenerateBusctlReplayLegacyInterface(HighlightedRequests)
+})
+document.getElementById("gen_replay_ipmid_new").addEventListener("click", function() {
+	GenerateBusctlReplayNewInterface(HighlightedRequests)
+})
 document.getElementById("btn_start_capture").addEventListener("click", function() {
 	let h = document.getElementById("text_hostname").value
 	StartCapture(h)
 })
+
+// For capture mode
 document.getElementById("btn_stop_capture").addEventListener("click", function() {
 	StopCapture()
 })
@@ -97,18 +143,78 @@ document.getElementById("btn_open_file").addEventListener("click", function() {
   let x = dialog.showOpenDialogSync(options) + ""; // Convert to string
     
   console.log("x=" + x)
-	document.getElementById("file_name").textContent = x
-  fs.readFile(x, { encoding:"utf-8" }, (err, data) => {
-    if (err) { console.log("Error in readFile: " + err) }
-    else {
-      ParseIPMIDump(data)
-    }
-  });
+
+  // First try to parse using dbus-pcap
+	//dbus_pcap = spawn("python3", ["../Downloads/dbus-pcap", x], {shell:true});
+	var dbus_pcap_out1, dbus_pcap_out2; // Normal format and JSON format output from dbus-pcap
+	exec("python3 ../Downloads/dbus-pcap " + x, 
+		{ maxBuffer: 1024*1024*64 }, // 64 MB buffer
+		(error, stdout, stderr) => {
+		console.log("stdout len:" + stdout.length);
+		dbus_pcap_out1 = stdout;
+		exec("python3 ../Downloads/dbus-pcap --json " + x,
+			{ maxBuffer: 1024*1024*64 },
+			(error1, stdout1, stderr1) => {
+			dbus_pcap_out2 = stdout1;
+			// Parse 1
+			let lines = dbus_pcap_out1.split("\n");
+//			console.log(lines);
+			timestamps1 = []
+			for (let i=0; i<lines.length; i++) {
+				const l = lines[i].trim();
+				try {
+					if (l.length > 0) {
+						const l0 = l.substr(0, l.indexOf(":"));
+						const ts_usec = parseFloat(l0) * 1000.0;
+						if (!isNaN(ts_usec)) {
+							timestamps1.push(ts_usec)
+						} else {
+							console.log("NaN! " + l)
+						}
+					}
+				} catch(x) {
+					console.log(x)
+				}
+			}
+			Timestamps_DBus = timestamps1;
+
+			// Parse 2
+			temp1 = []
+			lines = dbus_pcap_out2.split("\n")
+			for (let i=0; i<lines.length; i++) {
+				try {
+					temp1.push(JSON.parse(lines[i]));
+				} catch (x) {
+					console.log("Line " + i + " could not be parsed");
+				}
+			}
+			Data_DBus = temp1.slice();
+
+			OnGroupByConditionChanged_DBus();
+			const v = dbus_timeline_view;
+			g_temp0 = timestamps1
+			let preproc = Preprocess_DBusPcap(temp1, timestamps1);
+			let grouped = Group_DBus(preproc, v.GroupBy);
+			GenerateTimeLine_DBus(grouped);
+			dbus_timeline_view.IsCanvasDirty = true;
+
+		});
+	});
+
+	if (false) {
+		document.getElementById("file_name").textContent = x
+		fs.readFile(x, { encoding:"utf-8" }, (err, data) => {
+			if (err) { console.log("Error in readFile: " + err) }
+			else {
+				ParseIPMIDump(data)
+			}
+		});
+	}
 });
 
 // Data
 var HistoryHistogram = []
-var Data = []
+//var Data_IPMI = []
 
 // =====================
 
@@ -129,15 +235,13 @@ function IsIntersected(i0, i1) {
 
 var NetFnCmdToDescription = {"6, 1":"App-GetDeviceId","6, 3":"App-WarmReset","10, 64":"Storage-GetSelInfo","10, 35":"Storage-GetSdr","4, 32":"Sensor-GetDeviceSDRInfo","4, 34":"Sensor-ReserveDeviceSDRRepo","4, 47":"Sensor-GetSensorType","10, 34":"Storage-ReserveSdrRepository","46, 50":"OEM Extension","4, 39":"Sensor-GetSensorThresholds","4, 45":"Sensor-GetSensorReading","10, 67":"Storage-GetSelEntry","58, 196":"IBM_OEM","10, 32":"Storage-GetSdrRepositoryInfo","4, 33":"Sensor-GetDeviceSDR","6, 54":"App-Get BT Interface Capabilities","10, 17":"Storage-ReadFruData","10, 16":"Storage-GetFruInventoryAreaInfo","4, 2":"Sensor-PlatformEvent","4, 48":"Sensor-SetSensor","6, 34":"App-ResetWatchdogTimer"};
 
-const CANVAS_H = document.getElementById("my_canvas").height;
-const CANVAS_W = document.getElementById("my_canvas").width;
-// Default range: 0 to 300s
-var RANGE_LEFT_INIT  = 0;
-var RANGE_RIGHT_INIT = 300;
-let LowerBoundTime = RANGE_LEFT_INIT;
-let UpperBoundTime = RANGE_RIGHT_INIT;
-let LastTimeLowerBound;
-let LastTimeUpperBound;
+const CANVAS_H = document.getElementById("my_canvas_ipmi").height;
+const CANVAS_W = document.getElementById("my_canvas_ipmi").width;
+
+var LowerBoundTime = RANGE_LEFT_INIT;
+var UpperBoundTime = RANGE_RIGHT_INIT;
+var LastTimeLowerBound;
+var LastTimeUpperBound;
 // Dirty flags for determining when to redraw the canvas
 let IsCanvasDirty = true;
 let IsHighlightDirty = false;
@@ -207,13 +311,13 @@ function ComputeHistogram(num_buckets = 30, is_free_x = true) {
 
 function Preprocess(data) {
   preprocessed = [];
-  let usec0 = 0;
+  StartingUsec_IPMI = undefined;
   for (let i=0; i<data.length; i++) {
     let entry = data[i].slice();
     let lb = entry[2], ub = entry[3];
-    if (i == 0) { usec0 = lb; }
-    entry[2] = lb - usec0;
-    entry[3] = ub - usec0;
+    if (i == 0) { StartingUsec_IPMI = lb; }
+    entry[2] = lb - StartingUsec_IPMI;
+    entry[3] = ub - StartingUsec_IPMI;
     preprocessed.push(entry);
   }
   return preprocessed;
@@ -239,7 +343,7 @@ function GenerateTimeLine(grouped) {
   let sortedKeys = keys.slice();
   // If NetFN and CMD are both selected, sort by NetFN then CMD
   // In this case, all "keys" are string-encoded integer pairs
-  if (keys.length > 0 && GroupBy.length == 2) {
+  if (keys.length > 0 && ipmi_timeline_view.GroupBy.length == 2) {
     sortedKeys   = sortedKeys.sort(function(a, b) {
       a = a.split(",");
       b = b.split(",");
@@ -262,28 +366,33 @@ function GenerateTimeLine(grouped) {
     }
     Intervals.push(line);
   }
+
+  ipmi_timeline_view.Intervals = Intervals.slice()
+	ipmi_timeline_view.Titles    = Titles.slice()
 }
 
 function OnGroupByConditionChanged() {
   const tags = ["c1", "c2"];
-  GroupBy    = [];
-  GroupByStr = "";
+	const v = ipmi_timeline_view;
+  v.GroupBy    = [];
+  v.GroupByStr = "";
   for (let i=0; i<tags.length; i++) {
     let cb = document.getElementById(tags[i]);
     if (cb.checked) {
-      GroupBy.push(cb.value);
-      if (GroupByStr.length > 0) { GroupByStr += ", "; }
-      GroupByStr += cb.value;
+      v.GroupBy.push(cb.value);
+      if (v.GroupByStr.length > 0) {
+				v.GroupByStr += ", ";
+			}
+      v.GroupByStr += cb.value;
     }
   }
-  let preproc = Preprocess(Data);
-  grouped = Group(preproc, GroupBy);
+  let preproc = Preprocess(Data_IPMI);
+  grouped = Group(preproc, v.GroupBy);
   GenerateTimeLine(grouped);
-  IsCanvasDirty = true;
-}
 
-OnGroupByConditionChanged();
-ComputeHistogram();
+  IsCanvasDirty = true;
+	ipmi_timeline_view.IsCanvasDirty = true;
+}
 
 function MapXCoord(x, left_margin, right_margin, rl, rr) {
   let ret = left_margin + (x - rl) / (rr - rl) * (right_margin - left_margin);
@@ -311,7 +420,7 @@ function BeginZoomAnimation(dz, mid=undefined) {
   }
   LowerBoundTimeTarget  = mid - (mid -  LowerBoundTime)  * (1 - dz);
   UpperBoundTimeTarget = mid + (UpperBoundTime - mid) * (1 - dz);
-  IsCanvasDirty     = true;
+  IsCanvasDirty = true;
   IsAnimating = true;
 }
 
@@ -455,6 +564,10 @@ function RenderHistogram(ctx, key, xMid, yMid) {
 }
 
 function draw_timeline(ctx) {
+
+  ipmi_timeline_view.Render(ctx);
+  return;
+
   // Update
   let toFixedPrecision = 2;
   if (UpperBoundTime - LowerBoundTime < 0.1) {
@@ -997,15 +1110,20 @@ function draw_timeline(ctx) {
 window.addEventListener("keydown",
   function() {
     if (event.keyCode == 37) { // Left Arrow
-      CurrDeltaX = -0.004;
+      ipmi_timeline_view.CurrDeltaX = -0.004;
+      dbus_timeline_view.CurrDeltaX = -0.004;
     } else if (event.keyCode == 39) { // Right arrow
-      CurrDeltaX =  0.004;
+      ipmi_timeline_view.CurrDeltaX =  0.004;
+			dbus_timeline_view.CurrDeltaX =  0.004;
     } else if (event.keyCode == 16) { // Shift
-      CurrShiftFlag = true;
+      ipmi_timeline_view.CurrShiftFlag = true;
+			dbus_timeline_view.CurrShiftFlag = true;
     } else if (event.keyCode == 38) { // Up arrow
-      CurrDeltaZoom = 0.01;
+      ipmi_timeline_view.CurrDeltaZoom = 0.01;
+			dbus_timeline_view.CurrDeltaZoom = 0.01;
     } else if (event.keyCode == 40) { // Down arrow
-      CurrDeltaZoom = -0.01;
+      ipmi_timeline_view.CurrDeltaZoom = -0.01;
+      dbus_timeline_view.CurrDeltaZoom = -0.01;
     }
   }
 );
@@ -1013,11 +1131,14 @@ window.addEventListener("keydown",
 window.addEventListener("keyup",
   function() {
     if (event.keyCode == 37 || event.keyCode == 39) {
-      CurrDeltaX = 0;
+      ipmi_timeline_view.CurrDeltaX = 0;
+      dbus_timeline_view.CurrDeltaX = 0;
     } else if (event.keyCode == 16) {
-      CurrShiftFlag = false;
+      ipmi_timeline_view.CurrShiftFlag = false;
+      dbus_timeline_view.CurrShiftFlag = false;
     } else if (event.keyCode == 38 || event.keyCode == 40) {
-      CurrDeltaZoom = 0;
+      ipmi_timeline_view.CurrDeltaZoom = 0;
+      dbus_timeline_view.CurrDeltaZoom = 0;
     }
   }
 );
@@ -1058,9 +1179,11 @@ let MouseState = {
   hoveredLineIndex: -999,
   hoveredSide: undefined
 };
-let Canvas = document.getElementById("my_canvas");
+let Canvas = document.getElementById("my_canvas_ipmi");
 
 Canvas.onmousemove = function(event) {
+  // Old code path
+	/*
   MouseState.x = event.pageX - this.offsetLeft;
   MouseState.y = event.pageY - this.offsetTop;
   if (MouseState.pressed == true) { // Update highlighted area
@@ -1068,6 +1191,25 @@ Canvas.onmousemove = function(event) {
   }
   OnMouseMove();
   IsCanvasDirty = true;
+	*/
+
+	// New code path should affect both views
+	const v = ipmi_timeline_view;
+  v.MouseState.x = event.pageX - this.offsetLeft;
+  v.MouseState.y = event.pageY - this.offsetTop;
+  if (v.MouseState.pressed == true) { // Update highlighted area
+    v.HighlightedRegion.t1 = v.MouseXToTimestamp(v.MouseState.x);
+  }
+  v.OnMouseMove();
+  v.IsCanvasDirty = true;
+
+	const u = dbus_timeline_view;
+  u.MouseState.x = event.pageX - this.offsetLeft;
+  if (u.MouseState.pressed == true) { // Update highlighted area
+    u.HighlightedRegion.t1 = u.MouseXToTimestamp(u.MouseState.x);
+  }
+  u.OnMouseMove();
+  u.IsCanvasDirty = true;
 };
 
 function OnMouseMove() {
@@ -1095,77 +1237,50 @@ function OnMouseMove() {
 
 Canvas.onmouseover = function() {
   OnMouseMove();
+	ipmi_timeline_view.OnMouseMove();
 };
 
 Canvas.onmouseleave= function() {
   MouseState.hovered = false;
   IsCanvasDirty = true;
+	ipmi_timeline_view.OnMouseLeave();
+	dbus_timeline_view.OnMouseLeave();
 };
 
 Canvas.onmousedown = function(event) {
   if (event.button == 0) { // Left mouse button
-
-    // If hovering over an overflowing triangle, warp to the nearest overflowed
-    //     request on that line
-    if (MouseState.hoveredLineIndex >= 0 &&
-        MouseState.hoveredLineIndex < Intervals.length &&
-        MouseState.hoveredSide != undefined) {
-      let line = Intervals[MouseState.hoveredLineIndex];
-      if (MouseState.hoveredSide == "left") {
-        for (let i=line.length-1; i>=0; i--) {
-          if (line[i][1] <= LowerBoundTime) {
-            BeginWarpToRequestAnimation(line[i]); break;
-          }
-        }
-      } else if (MouseState.hoveredSide == "right") {
-        for (let i=0; i<line.length; i++) {
-          if (line[i][0] >= UpperBoundTime) {
-            BeginWarpToRequestAnimation(line[i]); break;
-          }
-        }
-      }
-    }
-
-    let tx = MouseXToTimestamp(MouseState.x);
-    let t0 = Math.min(HighlightedRegion.t0, HighlightedRegion.t1),
-        t1 = Math.max(HighlightedRegion.t0, HighlightedRegion.t1);
-    console.log(t0 + ", " + tx + ", " + t1);
-    if (tx >= t0 && tx <= t1) {
-      // If clicking inside highlighted area, zoom around the area
-      BeginSetBoundaryAnimation(t0, t1);
-      Unhighlight();
-      IsCanvasDirty = true;
-    } else { // Otherwise start a new dragging session
-      MouseState.pressed = true;
-      HighlightedRegion.t0 = MouseXToTimestamp(MouseState.x);
-      HighlightedRegion.t1 = HighlightedRegion.t0;
-      IsCanvasDirty = true;
-    }
+		ipmi_timeline_view.OnMouseDown()
   }
 };
 
 Canvas.onmouseup = function(event) {
   if (event.button == 0) {
-    MouseState.pressed = false;
+		ipmi_timeline_view.OnMouseUp();
+		// page-specific, not view-specific
     let hint = document.getElementById("highlight_hint");
-    if (UnhighlightIfEmpty()) {
+    if (ipmi_timeline_view.UnhighlightIfEmpty()) {
       hint.style.display = "none";
     } else { hint.style.display = "block"; }
-    IsCanvasDirty = true;
-    IsHighlightDirty = true;
   }
 };
 
 Canvas.onwheel = function(event) {
-  let dz = 0;
-  if (event.deltaY > 0) { // Scroll down, zoom out
-    dz = -0.3;
-  } else if (event.deltaY < 0) {  // Scroll up, zoom in
-    dz = 0.3;
-  }
-  Zoom(dz, MouseXToTimestamp(MouseState.x));
+	event.preventDefault();
+	const v = ipmi_timeline_view;
+	if (v.IsMouseOverTimeline()) {
+		let dz = 0;
+		if (event.deltaY > 0) { // Scroll down, zoom out
+			dz = -0.3;
+		} else if (event.deltaY < 0) {  // Scroll up, zoom in
+			dz = 0.3;
+		}
+		v.Zoom(dz,
+			v.MouseXToTimestamp(
+				v.MouseState.x));
+	}
 };
 
+// This function is not specific to TimelineView so putting it here
 function OnHighlightedChanged(reqs) {
   let x = document.getElementById("ipmi_replay");
   let i = document.getElementById("ipmi_replay_output");

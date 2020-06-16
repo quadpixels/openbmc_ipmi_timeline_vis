@@ -43,17 +43,29 @@
 
     <hr/> 
 
-		<div id="div_group_by">Group IPMI Requests by:
-    <span>
-    <input type="checkbox" id="c1" value="NetFN" checked>NetFN</input>
-    <input type="checkbox" id="c2" value="CMD"     checked>CMD</input>
+		<div id="div_group_by">
+    <span id="span_group_by_dbus">
+				Group DBus Requests by:
+				<input type="checkbox" id="dbus_column1" value="Type">Type</input>
+				<input type="checkbox" id="dbus_column2" value="Serial">Serial</input>
+				<input type="checkbox" id="dbus_column3" value="Sender">Sender</input>
+				<input type="checkbox" id="dbus_column4" value="Destination">Destination</input>
+				<input type="checkbox" id="dbus_column5" value="Path"checked>Path</input>
+				<input type="checkbox" id="dbus_column6" value="Interface" checked>Interface</input>
+				<input type="checkbox" id="dbus_column7" value="Member">Member</input>
+    </span>
+		&nbsp;
+    <span id="span_group_by_ipmi">
+			  Group IPMI Requests by:
+				<input type="checkbox" id="c1" value="NetFN" checked>NetFN</input>
+				<input type="checkbox" id="c2" value="CMD"     checked>CMD</input>
     </span>
 		</div>
       
 		<div id="div_canvas">
-    <canvas id="my_canvas" width="1400" height="400">
+		<canvas id="my_canvas_dbus" width="1400" height="500"></canvas>
+		<canvas id="my_canvas_ipmi" width="1400" height="200"></canvas>
 		</div>
-    </canvas>
 
 		<div id="div_navi_and_replay">
 			<div>
@@ -87,10 +99,13 @@
 
     <!-- You can also require other files to run in this process -->
     <script src="./dummy_data.js"></script>
+    <script src="./timeline_view.js"></script>
+    <script src="./dbus_timeline_vis.js"></script>
     <script src="./ipmi_timeline_vis.js"></script>
     <script src="./ipmi_parse.js"></script>
     <script src="./ipmi_capture.js"></script>
     <script src="./renderer.js"></script>
+		<script src="./dbus_pcap_loader.js"></script>
 		<link rel="stylesheet" href="./ipmi_vis.css">
   </body>
 </html>

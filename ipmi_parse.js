@@ -306,10 +306,10 @@ function MunchLines() {
 
 function UpdateLayout() {
   if (g_ipmi_parsed_entries.length > 0) {
-  	// Write to Data
+  	// Write to Data_IPMI
 		let ts0 = g_ipmi_parsed_entries[0].start_usec
 		let ts1 = g_ipmi_parsed_entries[g_ipmi_parsed_entries.length-1].end_usec
-  	Data = []
+  	Data_IPMI = []
   	for (i=0; i<g_ipmi_parsed_entries.length; i++) {
   	  let entry = g_ipmi_parsed_entries[i]
   		let x = [ entry.netfn, entry.cmd, 
@@ -318,7 +318,7 @@ function UpdateLayout() {
 				entry.request,
 				entry.response
 			]
-			Data.push(x)
+			Data_IPMI.push(x)
   	}
 
 		// Re-calculate time range
@@ -345,13 +345,13 @@ function ParseIPMIDump(data) {
 // Load dummy data
 function LoadDummyData() {
 	document.getElementById("file_name").textContent = "(demo file)"
-	Data = DummyData.slice()
+	// Dummy IPMI messages ...
+	Data_IPMI = DummyData_IPMI.slice()
 	IsCanvasDirty = true
 	OnGroupByConditionChanged()
 	RANGE_RIGHT_INIT = 60
 	BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
+	ipmi_timeline_view.BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
+	dbus_timeline_view.BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
 	ComputeHistogram()
 }
-
-// Load dummy data upon starting of the program
-//LoadDummyData()

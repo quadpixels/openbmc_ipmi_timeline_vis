@@ -7,7 +7,7 @@ const { exec   } = require("child_process")
 var StartingUsec_IPMI = undefined;
 
 // Main view object
-var ipmi_timeline_view = new TimelineView();
+var ipmi_timeline_view = new IPMITimelineView();
 
 var btn_start_capture   = document.getElementById("btn_start_capture")
 var select_capture_mode = document.getElementById("select_capture_mode")
@@ -26,24 +26,28 @@ document.getElementById("c2").addEventListener("click", OnGroupByConditionChange
 document.getElementById("btn_zoom_in").addEventListener("click", function() {
 	BeginZoomAnimation(0.5)
 	ipmi_timeline_view.BeginZoomAnimation(0.5)
+	boost_asio_handler_timeline_view.BeginZoomAnimation(0.5)
 })
 
 // Zoom out button
 document.getElementById("btn_zoom_out").addEventListener("click", function() {
 	BeginZoomAnimation(-1)
 	ipmi_timeline_view.BeginZoomAnimation(-1)
+	boost_asio_handler_timeline_view.BeginZoomAnimation(-1)
 })
 
 // Pan left button
 document.getElementById("btn_pan_left").addEventListener("click", function() {
 	BeginPanScreenAnimaton(-0.5)
 	ipmi_timeline_view.BeginPanScreenAnimaton(-0.5)
+	boost_asio_handler_timeline_view.BeginPanScreenAnimaton(-0.5)
 })
 
 // Pan right button
 document.getElementById("btn_pan_right").addEventListener("click", function() {
 	BeginPanScreenAnimaton(0.5)
 	ipmi_timeline_view.BeginPanScreenAnimaton(0.5)
+	boost_asio_handler_timeline_view.BeginPanScreenAnimaton(0.5)
 })
 
 // Reset zoom button
@@ -51,6 +55,7 @@ document.getElementById("btn_zoom_reset").addEventListener("click", function() {
 	BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
 	ipmi_timeline_view.BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
 	dbus_timeline_view.BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
+	boost_asio_handler_timeline_view.BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
 })
 
 // Generate replay
@@ -79,7 +84,7 @@ document.getElementById("select_capture_mode").addEventListener("click", OnCaptu
 radio_open_file.addEventListener("click", OnAppModeChanged)
 radio_capture.addEventListener("click", OnAppModeChanged)
 
-radio_capture.click()
+radio_open_file.click()
 
 // App mode: open file or capture
 function OnAppModeChanged() {
@@ -127,7 +132,7 @@ function OnCaptureStop() {
 	text_hostname.disabled = false
 }
 
-// Todo: change to async
+// The file may be either DBus dump or Boost Asio handler log
 document.getElementById("btn_open_file").addEventListener("click", function() {
   console.log("Will open a dialog box ...");
   const options = {
@@ -141,17 +146,40 @@ document.getElementById("btn_open_file").addEventListener("click", function() {
     //message: 'This message will only be shown on macOS'
   };
   let x = dialog.showOpenDialogSync(options) + ""; // Convert to string
-    
-  console.log("x=" + x)
+  console.log("file name: " + x)
+  
+	// Determine file type
+	let is_asio_log = false;
+  const data = fs.readFileSync(x, {encoding:"utf-8"});
+	let lines = data.split("\n")
+	console.log("This file has " + lines.length + " lines");
+	for (let i=0; i<lines.length; i++) {
+		if (lines[i].indexOf("@asio") == 0) {
+			is_asio_log = true;
+			break;
+		}
+	}
+
+	if (is_asio_log) {
+		ShowBlocker("Loading Boost ASIO handler tracking log");
+    console.log("This file is a Boost Asio handler tracking log");
+	  ParseBoostHandlerTimeline(data);
+		OnGroupByConditionChanged_ASIO();
+		HideBlocker()
+		return;
+	}
+
 
   // First try to parse using dbus-pcap
 	//dbus_pcap = spawn("python3", ["../Downloads/dbus-pcap", x], {shell:true});
 	var dbus_pcap_out1, dbus_pcap_out2; // Normal format and JSON format output from dbus-pcap
+	ShowBlocker("Running dbus-pcap, pass 1/2");
 	exec("python3 ../Downloads/dbus-pcap " + x, 
 		{ maxBuffer: 1024*1024*64 }, // 64 MB buffer
 		(error, stdout, stderr) => {
 		console.log("stdout len:" + stdout.length);
 		dbus_pcap_out1 = stdout;
+		ShowBlocker("Running dbus-pcap, pass 2/2");
 		exec("python3 ../Downloads/dbus-pcap --json " + x,
 			{ maxBuffer: 1024*1024*64 },
 			(error1, stdout1, stderr1) => {
@@ -190,6 +218,7 @@ document.getElementById("btn_open_file").addEventListener("click", function() {
 			}
 			Data_DBus = temp1.slice();
 
+			ShowBlocker("Processing dbus dump");
 			OnGroupByConditionChanged_DBus();
 			const v = dbus_timeline_view;
 			g_temp0 = timestamps1
@@ -197,7 +226,7 @@ document.getElementById("btn_open_file").addEventListener("click", function() {
 			let grouped = Group_DBus(preproc, v.GroupBy);
 			GenerateTimeLine_DBus(grouped);
 			dbus_timeline_view.IsCanvasDirty = true;
-
+			HideBlocker()
 		});
 	});
 
@@ -1182,18 +1211,6 @@ let MouseState = {
 let Canvas = document.getElementById("my_canvas_ipmi");
 
 Canvas.onmousemove = function(event) {
-  // Old code path
-	/*
-  MouseState.x = event.pageX - this.offsetLeft;
-  MouseState.y = event.pageY - this.offsetTop;
-  if (MouseState.pressed == true) { // Update highlighted area
-    HighlightedRegion.t1 = MouseXToTimestamp(MouseState.x);
-  }
-  OnMouseMove();
-  IsCanvasDirty = true;
-	*/
-
-	// New code path should affect both views
 	const v = ipmi_timeline_view;
   v.MouseState.x = event.pageX - this.offsetLeft;
   v.MouseState.y = event.pageY - this.offsetTop;
@@ -1203,13 +1220,15 @@ Canvas.onmousemove = function(event) {
   v.OnMouseMove();
   v.IsCanvasDirty = true;
 
-	const u = dbus_timeline_view;
-  u.MouseState.x = event.pageX - this.offsetLeft;
-  if (u.MouseState.pressed == true) { // Update highlighted area
-    u.HighlightedRegion.t1 = u.MouseXToTimestamp(u.MouseState.x);
-  }
-  u.OnMouseMove();
-  u.IsCanvasDirty = true;
+	v.linked_views.forEach(function(u) {
+		u.MouseState.x = event.pageX - Canvas.offsetLeft;
+		u.MouseState.y = 0; // Do not highlight any entry
+		if (u.MouseState.pressed == true) { // Update highlighted area
+			u.HighlightedRegion.t1 = u.MouseXToTimestamp(u.MouseState.x);
+		}
+		u.OnMouseMove();
+		u.IsCanvasDirty = true;
+	});
 };
 
 function OnMouseMove() {
@@ -1277,6 +1296,12 @@ Canvas.onwheel = function(event) {
 		v.Zoom(dz,
 			v.MouseXToTimestamp(
 				v.MouseState.x));
+	} else {
+		if (event.deltaY > 0) { 
+			v.ScrollY(1);
+		} else if (event.deltaY < 0) { 
+			v.ScrollY(-1);
+		}
 	}
 };
 

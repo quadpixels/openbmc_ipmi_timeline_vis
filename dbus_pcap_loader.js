@@ -174,24 +174,3 @@ function Preprocess_DBusPcap(data, timestamps) {
 //  return DummyData_DBus;
 	return ret;
 }
-
-function Init() {
-	console.log("[Init] Initialization");
-	ipmi_timeline_view.Canvas = document.getElementById("my_canvas_ipmi");
-	dbus_timeline_view.Canvas = document.getElementById("my_canvas_dbus");
-
-	// Link both views
-	dbus_timeline_view.linked_view = ipmi_timeline_view;
-	ipmi_timeline_view.linked_view = dbus_timeline_view;
-
-	// Initialization stuff all go here
-	OnGroupByConditionChanged();
-	ComputeHistogram();
-
-	// The following is for loading dummy IPMI data & is deprecated
-	// when moving to DBus
-	// Load dummy data upon starting of the program
-	// LoadDummyData()
-}
-
-Init();

@@ -3,11 +3,9 @@
 // (JSON and text)
 var Data_DBus       = []
 var Timestamps_DBus = []
-var StartingUsec_DBus = 0;
 
 // Main view object
-dbus_timeline_view = new TimelineView();
-dbus_timeline_view.is_dbus = true;
+var dbus_timeline_view = new DBusTimelineView();
 
 // group-by condition changes
 {
@@ -69,7 +67,7 @@ function GenerateTimeLine_DBus(grouped) {
 	let sortedKeys = keys.slice();
 	let intervals = [];
 	let titles    = [];
-	StartingUsec_DBus = undefined;
+	g_StartingSec = undefined;
 	for (let i=0; i<sortedKeys.length; i++) {
 		titles.push(sortedKeys[i]);
 		line = [];
@@ -79,10 +77,10 @@ function GenerateTimeLine_DBus(grouped) {
 			let t1 = parseFloat(entry[8]) / 1000.0;
 
 			// Assume IPMI dataset is loaded first
-			if (StartingUsec_DBus == undefined) {
-				StartingUsec_DBus = t0;
+			if (g_StartingSec == undefined) {
+				g_StartingSec = t0;
 			}
-			StartingUsec_DBus = Math.min(StartingUsec_DBus, t0);
+			g_StartingSec = Math.min(g_StartingSec, t0);
 
 			line.push([t0, t1, entry]);
 		}
@@ -93,8 +91,8 @@ function GenerateTimeLine_DBus(grouped) {
 	for (let i=0; i<intervals.length; i++) {
 		for (let j=0; j<intervals[i].length; j++) {
 			let x = intervals[i][j];
-			x[0] -= StartingUsec_DBus;
-			x[1] -= StartingUsec_DBus;
+			x[0] -= g_StartingSec;
+			x[1] -= g_StartingSec;
 		}
 	}
 
@@ -113,13 +111,15 @@ Canvas_DBus.onmousemove = function(event) {
   v.OnMouseMove();
   v.IsCanvasDirty = true;
 
-	const u = ipmi_timeline_view;
-  u.MouseState.x = event.pageX - this.offsetLeft;
-  if (u.MouseState.pressed == true) { // Update highlighted area
-    u.HighlightedRegion.t1 = u.MouseXToTimestamp(u.MouseState.x);
-  }
-  u.OnMouseMove();
-  u.IsCanvasDirty = true;
+	v.linked_views.forEach(function(u) {
+		u.MouseState.x = event.pageX - Canvas_DBus.offsetLeft;
+		u.MouseState.y = 1; // Do not highlight any entry
+		if (u.MouseState.pressed == true) { // Update highlighted area
+			u.HighlightedRegion.t1 = u.MouseXToTimestamp(u.MouseState.x);
+		}
+		u.OnMouseMove();
+		u.IsCanvasDirty = true;
+	});
 }
 
 Canvas_DBus.onmousedown = function(event) {

@@ -60,11 +60,21 @@
 				<input type="checkbox" id="c1" value="NetFN" checked>NetFN</input>
 				<input type="checkbox" id="c2" value="CMD"     checked>CMD</input>
     </span>
+		&nbsp;
+    <span id="span_group_by_boost_asio_handler">
+			  Group Asio Handlers by:
+				<input type="checkbox" id="bah1" value="Layout Level" checked>Layout Level</input>
+				<input type="checkbox" id="bah2" value="Description">Description</input>
+    </span>
 		</div>
       
 		<div id="div_canvas">
-		<canvas id="my_canvas_dbus" width="1400" height="500"></canvas>
-		<canvas id="my_canvas_ipmi" width="1400" height="200"></canvas>
+				<div id="blocker">
+						<div id="blocker_caption">AAAAA</div>
+				</div>
+				<canvas id="my_canvas_dbus" width="1400" height="300"></canvas>
+				<canvas id="my_canvas_ipmi" width="1400" height="200"></canvas>
+				<canvas id="my_canvas_boost_asio_handler" width="1400" height="200"></canvas>
 		</div>
 
 		<div id="div_navi_and_replay">
@@ -102,10 +112,12 @@
     <script src="./timeline_view.js"></script>
     <script src="./dbus_timeline_vis.js"></script>
     <script src="./ipmi_timeline_vis.js"></script>
+		<script src="./boost_handler_timeline_vis.js"></script>
     <script src="./ipmi_parse.js"></script>
     <script src="./ipmi_capture.js"></script>
     <script src="./renderer.js"></script>
 		<script src="./dbus_pcap_loader.js"></script>
+		<script src="./initialization.js"></script>
 		<link rel="stylesheet" href="./ipmi_vis.css">
   </body>
 </html>

@@ -30,3 +30,23 @@
 #my_canvas_ipmi, #span_group_by_ipmi {
 	border: 1px #00c0c0 solid
 }
+
+#my_canvas_boost_asio_handler, #span_group_by_boost_asio_handler {
+	border: 1px #c03030 solid
+}
+
+#blocker {
+	position: absolute;
+	top: 0; bottom: 0; display: block;
+	width: 100%; height: 100%;
+	background-color: rgba(128, 128, 128, 0.6);
+	display: none;
+}
+
+#blocker_caption {
+	position: absolute;
+	top: 44%;
+	width: 100%;
+	color: #00F;
+	background-color: #CCF;
+}

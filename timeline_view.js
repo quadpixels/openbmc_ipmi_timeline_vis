@@ -2,6 +2,9 @@
 var RANGE_LEFT_INIT  = 0;
 var RANGE_RIGHT_INIT = 300;
 
+// Global timeline start
+var g_StartingSec = undefined;
+
 // A TimelineView contains data that has already gone through
 // the Layout step and is ready for showing
 class TimelineView {
@@ -22,6 +25,8 @@ class TimelineView {
 		this.HighlightedRequests    = [];
 		this.Canvas                 = undefined;
 		this.TitleDispLengthLimit = 32; // display this many chars for title
+		this.IsTimeDistributionEnabled = false;
+		this.AccentColor = "#000";
 
 		this.TitleStartIdx = 0;
 
@@ -43,8 +48,13 @@ class TimelineView {
 		this.HighlightedRegion = { t0: -999, t1: -999 };
 
 		// The linked view will move and zoom with this view
-		this.linked_view = undefined;
+		this.linked_views = [];
   }
+
+	GetTitleWidthLimit() {
+		if (this.IsTimeDistributionEnabled == true) { return 32; }
+		else { return 64; }
+	}
 
 	ToLines(t, limit) {
 		let ret = [];
@@ -67,9 +77,9 @@ class TimelineView {
 		}
 
 		if (iter > 0) {
-			if (this.linked_view != undefined) {
-				this.linked_view.Zoom(dz, mid, iter-1);
-			}
+			this.linked_views.forEach(function(v) {
+				v.Zoom(dz, mid, iter-1);
+			});
 		}
 	}
 
@@ -83,9 +93,9 @@ class TimelineView {
 		this.IsAnimating   = true;
 
 		if (iter > 0) {
-			if (this.linked_view != undefined) {
-				this.linked_view.BeginZoomAnimation(dz, mid, iter-1);
-			}
+			this.linked_views.forEach(function(v) {
+				v.BeginZoomAnimation(dz, mid, iter-1);
+			});
 		}
 	}
 
@@ -95,9 +105,9 @@ class TimelineView {
 			                             this.UpperBoundTime + deltat);
 
 		if (iter > 0) {
-			if (this.linked_view != undefined) {
-				this.linked_view.BeginPanScreenAnimaton(delta_screens, iter-1);
-			}
+			this.linked_views.forEach(function(v) {
+				v.BeginPanScreenAnimaton(delta_screens, iter-1);
+			});
 		}
 	}
 
@@ -107,9 +117,9 @@ class TimelineView {
 		this.UpperBoundTimeTarget = rt;
 
 		if (iter > 0) {
-			if (this.linked_view != undefined) {
-				this.linked_view.BeginSetBoundaryAnimation(lt, rt, iter-1);
-			}
+			this.linked_views.forEach(function(v) {
+				v.BeginSetBoundaryAnimation(lt, rt, iter-1);
+			});
 		}
 	}
 
@@ -120,9 +130,9 @@ class TimelineView {
 		let rt  =  this.UpperBoundTime + (mid_new - mid);
 		this.BeginSetBoundaryAnimation(lt, rt, 0);
 
-		if (this.linked_view != undefined) {
-			this.linked_view.BeginSetBoundaryAnimation(lt, rt, 0);
-		}
+		this.linked_views.forEach(function(v) {
+			v.BeginSetBoundaryAnimation(lt, rt, 0);
+		});
 	}
 
 	UpdateAnimation() {
@@ -267,12 +277,11 @@ class TimelineView {
       this.Unhighlight();
       this.IsCanvasDirty = true;
 
-			if (this.linked_view != undefined) {
-				this.linked_view.BeginSetBoundaryAnimation(t0, t1, 0);
-				this.linked_view.Unhighlight();
-				this.linked_view.IsCanvasDirty = false;
-			}
-
+			this.linked_views.forEach(function(v) {
+				v.BeginSetBoundaryAnimation(t0, t1, 0);
+				v.Unhighlight();
+				v.IsCanvasDirty = false;
+			});
     } else { // Otherwise start a new dragging session
       this.MouseState.pressed = true;
       this.HighlightedRegion.t0 = this.MouseXToTimestamp(this.MouseState.x);
@@ -305,112 +314,8 @@ class TimelineView {
 		}
 	}
 
-	RenderToolTip_IPMI(ctx, theHoveredReq, theHoveredInterval, toFixedPrecision, height) {
-    if (theHoveredReq == undefined) { return; }
-		const PAD = 2, DELTA_Y = 14;
-
-		let labels = [];
-		let netFn = theHoveredReq[0];
-		let cmd = theHoveredReq[1];
-		let t0 = theHoveredInterval[0];
-		let t1 = theHoveredInterval[1];
-
-		labels.push("Netfn and CMD : (" + netFn + ", " + cmd + ")");
-		let key = netFn + ", " + cmd;
-
-		if (NetFnCmdToDescription[key] != undefined) {
-			labels.push("Description   : " + NetFnCmdToDescription[key]);
-		}
-		let req = theHoveredReq[4];
-		labels.push("Request Data  : " + req.length + " bytes");
-		if (req.length > 0) {
-			labels.push("Hex   : " + ToHexString(req, "", " "));
-			labels.push("ASCII : " + ToASCIIString(req));
-		}
-		let resp= theHoveredReq[5];
-		labels.push("Response Data : " + theHoveredReq[5].length + " bytes");
-		if (resp.length > 0) {
-			labels.push("Hex   : " + ToHexString(resp,"", " "));
-			labels.push("ASCII : " + ToASCIIString(resp));
-		}
-		labels.push("Start         : " + t0.toFixed(toFixedPrecision) + "s");
-		labels.push("End           : " + t1.toFixed(toFixedPrecision) + "s");
-		labels.push("Duration      : " + ((t1-t0)*1000).toFixed(3) + "ms");
-
-
-		let w = 1, h = LINE_SPACING * labels.length + 2 * PAD;
-		for (let i=0; i<labels.length; i++) {
-			w = Math.max(w, ctx.measureText(labels[i]).width);
-		}
-		let dy = this.MouseState.y + DELTA_Y;
-		if (dy + h > height) {
-			dy = height - h;
-		}
-		let dx = this.MouseState.x;
-		if (RIGHT_MARGIN - dx < w) dx -= (w + 2 * PAD);
-
-		ctx.fillStyle = "rgba(0,0,0,0.5)";
-		ctx.fillRect(dx, dy, w + 2 * PAD, h);
-
-		ctx.textAlign = "left";
-		ctx.textBaseline = "middle";
-		ctx.fillStyle = "#FFFFFF";
-		for (let i=0; i<labels.length; i++) {
-			ctx.fillText(labels[i],
-					dx + PAD, dy + PAD + i * LINE_SPACING + LINE_SPACING/2);
-		}
-	}
-
-	RenderToolTip_DBUS(ctx, theHoveredReq, theHoveredInterval, toFixedPrecision, height) {
-    if (theHoveredReq == undefined) { return; }
-		const PAD = 2, DELTA_Y = 14;
-
-		let labels = [];
-		let msg_type   = theHoveredReq[0];
-		let serial     = theHoveredReq[2];
-		let sender     = theHoveredReq[3];
-		let destination= theHoveredReq[4];
-		let path       = theHoveredReq[5];
-		let iface      = theHoveredReq[6];
-		let member     = theHoveredReq[7];
-
-		let t0 = theHoveredInterval[0];
-		let t1 = theHoveredInterval[1];
-
-		labels.push("Message type: " + msg_type);
-    labels.push("Serial      : " + serial);
-		labels.push("Sender      : " + sender);
-		labels.push("Destination : " + destination);
-		labels.push("Path        : " + path);
-		labels.push("Interface   : " + iface);
-		labels.push("Member      : " + member);
-
-		let w = 1, h = LINE_SPACING * labels.length + 2 * PAD;
-		for (let i=0; i<labels.length; i++) {
-			w = Math.max(w, ctx.measureText(labels[i]).width);
-		}
-		let dy = this.MouseState.y + DELTA_Y;
-		if (dy + h > height) {
-			dy = height - h;
-		}
-		let dx = this.MouseState.x;
-		if (RIGHT_MARGIN - dx < w) dx -= (w + 2 * PAD);
-
-		ctx.fillStyle = "rgba(0,0,0,0.5)";
-		ctx.fillRect(dx, dy, w + 2 * PAD, h);
-
-		ctx.textAlign = "left";
-		ctx.textBaseline = "middle";
-		ctx.fillStyle = "#FFFFFF";
-		for (let i=0; i<labels.length; i++) {
-			ctx.fillText(labels[i],
-					dx + PAD, dy + PAD + i * LINE_SPACING + LINE_SPACING/2);
-		}
-
-	}
 
 	Render(ctx) {
-		
 		// Wait for initialization
 		if (this.Canvas == undefined) return;
 
@@ -522,22 +427,24 @@ class TimelineView {
 				}
 			}
 
-			// "Histogram" title
-			ctx.fillStyle = "#000";
-			ctx.textBaseline = "top";
-			ctx.textAlign = "center";
-			ctx.fillText("Time Distribution", HISTOGRAM_X, TEXT_Y0);
+			if (this.IsTimeDistributionEnabled) {
+				// "Histogram" title
+				ctx.fillStyle = "#000";
+				ctx.textBaseline = "top";
+				ctx.textAlign = "center";
+				ctx.fillText("Time Distribution", HISTOGRAM_X, TEXT_Y0);
 
-			ctx.textAlign = "right"
-			ctx.fillText("In dataset /", HISTOGRAM_X, TEXT_Y0 + LINE_SPACING - 2);
+				ctx.textAlign = "right"
+				ctx.fillText("In dataset /", HISTOGRAM_X, TEXT_Y0 + LINE_SPACING - 2);
 
-			ctx.fillStyle = "#00F";
+				ctx.fillStyle = "#00F";
 
-			ctx.textAlign = "left"
-			if (this.IsHighlighted()) {
-				ctx.fillText(" In selection", HISTOGRAM_X, TEXT_Y0 + LINE_SPACING - 2);
-			} else {
-				ctx.fillText(" In viewport", HISTOGRAM_X, TEXT_Y0 + LINE_SPACING - 2);
+				ctx.textAlign = "left"
+				if (this.IsHighlighted()) {
+					ctx.fillText(" In selection", HISTOGRAM_X, TEXT_Y0 + LINE_SPACING - 2);
+				} else {
+					ctx.fillText(" In viewport", HISTOGRAM_X, TEXT_Y0 + LINE_SPACING - 2);
+				}
 			}
 
 			ctx.fillStyle = "#000";
@@ -619,7 +526,7 @@ class TimelineView {
 				}
 
 				// Plot histogram
-				if (true) {
+				if (this.IsTimeDistributionEnabled == true) {
 					const t = this.Titles[j];
 					if (GetHistoryHistogram()[t] != undefined) {
 						if (this.IpmiVizHistogramImageData[t] == undefined) {
@@ -638,8 +545,9 @@ class TimelineView {
 				ctx.fillStyle = "#000000"; // Revert to Black
 				ctx.strokeStyle = "#000000";
 				let tj_draw = this.Titles[j];
-				if (tj_draw.length > this.TitleDispLengthLimit) {
-					tj_draw = tj_draw.substr(0, this.TitleDispLengthLimit) + "..."
+				const title_disp_length_limit = this.GetTitleWidthLimit();
+				if (tj_draw != undefined && tj_draw.length > title_disp_length_limit) {
+					tj_draw = tj_draw.substr(0, title_disp_length_limit) + "..."
 				}
 				ctx.fillText(tj_draw, LEFT_MARGIN - 3 - desc_width, y);
 
@@ -649,87 +557,89 @@ class TimelineView {
 				let totalSecsCurrLine = 0; // Total duration in seconds
 
 			  const intervals_j = this.Intervals[j];	
-				for (let i=0; i<intervals_j.length; i++) {
-					let lb = intervals_j[i][0], ub = intervals_j[i][1];
-					if (lb > ub) continue; // Unmatched (only enter & no exit timestamp)
+				if (intervals_j != undefined) {
+					for (let i=0; i<intervals_j.length; i++) {
+						let lb = intervals_j[i][0], ub = intervals_j[i][1];
+						if (lb > ub) continue; // Unmatched (only enter & no exit timestamp)
 
-					let isHighlighted = false;
-					let durationUsec = (intervals_j[i][1] - intervals_j[i][0]) * 1000000;
-					let lbub = [ lb, ub ];
-					if (this.IsHighlighted()) {
-						if (IsIntersected(lbub, highlightedInterval)) {
-							numIntersected ++;
-							isHighlighted = true;
-							currHighlightedReqs.push(intervals_j[i][2]);
-						}
-					}
-
-					if (ub < this.LowerBoundTime) { numOverflowEntriesToTheLeft  ++; continue; }
-					if (lb > this.UpperBoundTime) { numOverflowEntriesToTheRight ++; continue; }
-
-					let dx0 = MapXCoord(lb, LEFT_MARGIN, RIGHT_MARGIN,
-															this.LowerBoundTime, this.UpperBoundTime),
-							dx1 = MapXCoord(ub, LEFT_MARGIN, RIGHT_MARGIN,
-															this.LowerBoundTime, this.UpperBoundTime),
-							dy0 = y - LINE_HEIGHT / 2,
-							dy1 = y + LINE_HEIGHT / 2;
-
-					dx0 = Math.max(dx0, LEFT_MARGIN);
-					dx1 = Math.min(dx1, RIGHT_MARGIN);
-					let dw = Math.max(0, dx1 - dx0);
-
-					if (isHighlighted) {
-						ctx.fillStyle = "rgba(128,128,255,0.5)";
-						ctx.fillRect(dx0, dy0, dw, dy1-dy0);
-					}
-
-					// Intersect with mouse using pixel coordinates
-					if (IsIntersected([dx0, dx0+dw], [this.MouseState.x, this.MouseState.x]) &&
-							IsIntersected([dy0, dy1],    [this.MouseState.y, this.MouseState.y])) {
-						ctx.fillStyle = "rgba(255,255,0,0.5)";
-						ctx.fillRect(dx0, dy0, dw, dy1-dy0);
-						theHoveredReq      = this.Intervals[j][i][2];
-						theHoveredInterval = this.Intervals[j][i];
-					}
-
-					ctx.lineWidth = 0.5;
-
-					// If this request is taking too long/is quick enough, use red/green
-					let entry = HistogramThresholds[this.Titles[j]];
-					if (entry != undefined) {
-						if (entry[0][1] != undefined && durationUsec < entry[0][1]) {
-							ctx.strokeStyle = "#0F0";
-						} else if (entry[1][1] != undefined && durationUsec > entry[1][1]) {
-							ctx.strokeStyle = "#A00";
-						} else { ctx.strokeStyle = "#000"; }
-					} else { ctx.strokeStyle = "#000"; }
-
-					ctx.strokeRect(dx0, dy0, dw, dy1-dy0);
-					numVisibleRequests ++;
-
-					// Affects whether this req will be reflected in the aggregate info
-					//     section
-					if ((isAggregateSelection == false) ||
-							(isAggregateSelection == true && isHighlighted == true)) {
-						numVisibleRequestsCurrLine ++;
-						totalSecsCurrLine += (this.Intervals[j][i][1] -
-							                    this.Intervals[j][i][0]);
-
-						// If a histogram exists for Titles[j], process the highlighted
-						//     histogram buckets
-						if (GetHistoryHistogram()[this.Titles[j]] != undefined) {
-							let histogramEntry = GetHistoryHistogram()[this.Titles[j]];
-							let bucketInterval = (histogramEntry[1] - histogramEntry[0]) /
-																	  histogramEntry[2].length;
-							let bucketIndex = Math.floor(
-									(durationUsec - histogramEntry[0]) / bucketInterval) /
-									histogramEntry[2].length;
-
-							if (this.IpmiVizHistHighlighted[this.Titles[j]] == undefined) {
-								this.IpmiVizHistHighlighted[this.Titles[j]] = new Set();
+						let isHighlighted = false;
+						let durationUsec = (intervals_j[i][1] - intervals_j[i][0]) * 1000000;
+						let lbub = [ lb, ub ];
+						if (this.IsHighlighted()) {
+							if (IsIntersected(lbub, highlightedInterval)) {
+								numIntersected ++;
+								isHighlighted = true;
+								currHighlightedReqs.push(intervals_j[i][2]);
 							}
-							let entry = this.IpmiVizHistHighlighted[this.Titles[j]];
-							entry.add(bucketIndex);
+						}
+
+						if (ub < this.LowerBoundTime) { numOverflowEntriesToTheLeft  ++; continue; }
+						if (lb > this.UpperBoundTime) { numOverflowEntriesToTheRight ++; continue; }
+
+						let dx0 = MapXCoord(lb, LEFT_MARGIN, RIGHT_MARGIN,
+																this.LowerBoundTime, this.UpperBoundTime),
+								dx1 = MapXCoord(ub, LEFT_MARGIN, RIGHT_MARGIN,
+																this.LowerBoundTime, this.UpperBoundTime),
+								dy0 = y - LINE_HEIGHT / 2,
+								dy1 = y + LINE_HEIGHT / 2;
+
+						dx0 = Math.max(dx0, LEFT_MARGIN);
+						dx1 = Math.min(dx1, RIGHT_MARGIN);
+						let dw = Math.max(0, dx1 - dx0);
+
+						if (isHighlighted) {
+							ctx.fillStyle = "rgba(128,128,255,0.5)";
+							ctx.fillRect(dx0, dy0, dw, dy1-dy0);
+						}
+
+						// Intersect with mouse using pixel coordinates
+						if (IsIntersected([dx0, dx0+dw], [this.MouseState.x, this.MouseState.x]) &&
+								IsIntersected([dy0, dy1],    [this.MouseState.y, this.MouseState.y])) {
+							ctx.fillStyle = "rgba(255,255,0,0.5)";
+							ctx.fillRect(dx0, dy0, dw, dy1-dy0);
+							theHoveredReq      = this.Intervals[j][i][2];
+							theHoveredInterval = this.Intervals[j][i];
+						}
+
+						ctx.lineWidth = 0.5;
+
+						// If this request is taking too long/is quick enough, use red/green
+						let entry = HistogramThresholds[this.Titles[j]];
+						if (entry != undefined) {
+							if (entry[0][1] != undefined && durationUsec < entry[0][1]) {
+								ctx.strokeStyle = "#0F0";
+							} else if (entry[1][1] != undefined && durationUsec > entry[1][1]) {
+								ctx.strokeStyle = "#A00";
+							} else { ctx.strokeStyle = "#000"; }
+						} else { ctx.strokeStyle = "#000"; }
+
+						ctx.strokeRect(dx0, dy0, dw, dy1-dy0);
+						numVisibleRequests ++;
+
+						// Affects whether this req will be reflected in the aggregate info
+						//     section
+						if ((isAggregateSelection == false) ||
+								(isAggregateSelection == true && isHighlighted == true)) {
+							numVisibleRequestsCurrLine ++;
+							totalSecsCurrLine += (this.Intervals[j][i][1] -
+																		this.Intervals[j][i][0]);
+
+							// If a histogram exists for Titles[j], process the highlighted
+							//     histogram buckets
+							if (GetHistoryHistogram()[this.Titles[j]] != undefined) {
+								let histogramEntry = GetHistoryHistogram()[this.Titles[j]];
+								let bucketInterval = (histogramEntry[1] - histogramEntry[0]) /
+																			histogramEntry[2].length;
+								let bucketIndex = Math.floor(
+										(durationUsec - histogramEntry[0]) / bucketInterval) /
+										histogramEntry[2].length;
+
+								if (this.IpmiVizHistHighlighted[this.Titles[j]] == undefined) {
+									this.IpmiVizHistHighlighted[this.Titles[j]] = new Set();
+								}
+								let entry = this.IpmiVizHistHighlighted[this.Titles[j]];
+								entry.add(bucketIndex);
+							}
 						}
 					}
 				}
@@ -787,39 +697,40 @@ class TimelineView {
 				let nbreaks = this.Titles.length;
 				let y0 = title_start_idx * height / nbreaks;
 				let y1 = (1 + title_end_idx) * height / nbreaks;
-				if (this.is_dbus) ctx.fillStyle = "rgba(0,128,0,0.9)"
-				else ctx.fillStyle = "rgba(0,192,192,0.5)"
+				ctx.fillStyle = this.AccentColor;
 				ctx.fillRect(0, y0, 4, y1-y0);
 			}
 
 			// Draw highlighted sections for the histograms
-			y = YBEGIN;
-			for (let j=0; j<this.Intervals.length; j++) {
-				if (this.IpmiVizHistHighlighted[this.Titles[j]] != undefined) {
-					let entry = HistogramThresholds[this.Titles[j]];
-					const theSet = Array.from(this.IpmiVizHistHighlighted[this.Titles[j]]);
-					for (let i=0; i<theSet.length; i++) {
-						bidx = theSet[i];
-						if (entry != undefined) {
-							if (bidx < entry[0][0]) {
-								if (bidx < 0) { bidx = 0; }
-								ctx.fillStyle = "rgba(0, 255, 0, 0.3)";
-							}
-							else if (bidx > entry[1][0]) {
-								if (bidx > 1) { bidx = 1; }
-								ctx.fillStyle = "rgba(255,0,0,0.3)";
-							}
-							else { ctx.fillStyle = "rgba(0,0,255,0.3)"; }
-						} else { ctx.fillStyle = "rgba(0,0,255,0.3)"; }
-						const dx = HISTOGRAM_X - HISTOGRAM_W/2 + HISTOGRAM_W * bidx;
+			if (this.IsTimeDistributionEnabled) {
+				y = YBEGIN;
+				for (let j=0; j<this.Intervals.length; j++) {
+					if (this.IpmiVizHistHighlighted[this.Titles[j]] != undefined) {
+						let entry = HistogramThresholds[this.Titles[j]];
+						const theSet = Array.from(this.IpmiVizHistHighlighted[this.Titles[j]]);
+						for (let i=0; i<theSet.length; i++) {
+							bidx = theSet[i];
+							if (entry != undefined) {
+								if (bidx < entry[0][0]) {
+									if (bidx < 0) { bidx = 0; }
+									ctx.fillStyle = "rgba(0, 255, 0, 0.3)";
+								}
+								else if (bidx > entry[1][0]) {
+									if (bidx > 1) { bidx = 1; }
+									ctx.fillStyle = "rgba(255,0,0,0.3)";
+								}
+								else { ctx.fillStyle = "rgba(0,0,255,0.3)"; }
+							} else { ctx.fillStyle = "rgba(0,0,255,0.3)"; }
+							const dx = HISTOGRAM_X - HISTOGRAM_W/2 + HISTOGRAM_W * bidx;
 
-						const r = HISTOGRAM_H * 0.17;
-						ctx.beginPath();
-						ctx.ellipse(dx, y, r, r, 0, 0, 3.14159*2);
-						ctx.fill();
+							const r = HISTOGRAM_H * 0.17;
+							ctx.beginPath();
+							ctx.ellipse(dx, y, r, r, 0, 0, 3.14159*2);
+							ctx.fill();
+						}
 					}
+					y += LINE_SPACING;
 				}
-				y += LINE_SPACING;
 			}
 
 			// Render number of visible requests versus totals
@@ -935,12 +846,161 @@ class TimelineView {
 
 			// Tooltip box next to hovered entry
 			if (theHoveredReq !== undefined) {
-				if (this.is_dbus) {
-					this.RenderToolTip_DBUS(ctx, theHoveredReq, theHoveredInterval, toFixedPrecision, height);
-				} else {
-					this.RenderToolTip_IPMI(ctx, theHoveredReq, theHoveredInterval, toFixedPrecision, height);
-				}
+				this.RenderToolTip(ctx, theHoveredReq, theHoveredInterval, toFixedPrecision, height);
 			}
 		} // End IsCanvasDirty
 	}
 };
+
+// The extended classes have their own way of drawing popups for hovered entries
+class IPMITimelineView extends TimelineView {
+	RenderToolTip(ctx, theHoveredReq, theHoveredInterval, toFixedPrecision, height) {
+    if (theHoveredReq == undefined) { return; }
+		const PAD = 2, DELTA_Y = 14;
+
+		let labels = [];
+		let netFn = theHoveredReq[0];
+		let cmd = theHoveredReq[1];
+		let t0 = theHoveredInterval[0];
+		let t1 = theHoveredInterval[1];
+
+		labels.push("Netfn and CMD : (" + netFn + ", " + cmd + ")");
+		let key = netFn + ", " + cmd;
+
+		if (NetFnCmdToDescription[key] != undefined) {
+			labels.push("Description   : " + NetFnCmdToDescription[key]);
+		}
+		let req = theHoveredReq[4];
+		labels.push("Request Data  : " + req.length + " bytes");
+		if (req.length > 0) {
+			labels.push("Hex   : " + ToHexString(req, "", " "));
+			labels.push("ASCII : " + ToASCIIString(req));
+		}
+		let resp= theHoveredReq[5];
+		labels.push("Response Data : " + theHoveredReq[5].length + " bytes");
+		if (resp.length > 0) {
+			labels.push("Hex   : " + ToHexString(resp,"", " "));
+			labels.push("ASCII : " + ToASCIIString(resp));
+		}
+		labels.push("Start         : " + t0.toFixed(toFixedPrecision) + "s");
+		labels.push("End           : " + t1.toFixed(toFixedPrecision) + "s");
+		labels.push("Duration      : " + ((t1-t0)*1000).toFixed(3) + "ms");
+
+
+		let w = 1, h = LINE_SPACING * labels.length + 2 * PAD;
+		for (let i=0; i<labels.length; i++) {
+			w = Math.max(w, ctx.measureText(labels[i]).width);
+		}
+		let dy = this.MouseState.y + DELTA_Y;
+		if (dy + h > height) {
+			dy = height - h;
+		}
+		let dx = this.MouseState.x;
+		if (RIGHT_MARGIN - dx < w) dx -= (w + 2 * PAD);
+
+		ctx.fillStyle = "rgba(0,0,0,0.5)";
+		ctx.fillRect(dx, dy, w + 2 * PAD, h);
+
+		ctx.textAlign = "left";
+		ctx.textBaseline = "middle";
+		ctx.fillStyle = "#FFFFFF";
+		for (let i=0; i<labels.length; i++) {
+			ctx.fillText(labels[i],
+					dx + PAD, dy + PAD + i * LINE_SPACING + LINE_SPACING/2);
+		}
+	}
+};
+
+class DBusTimelineView extends TimelineView {
+	RenderToolTip(ctx, theHoveredReq, theHoveredInterval, toFixedPrecision, height) {
+    if (theHoveredReq == undefined) { return; }
+		const PAD = 2, DELTA_Y = 14;
+
+		let labels = [];
+		let msg_type   = theHoveredReq[0];
+		let serial     = theHoveredReq[2];
+		let sender     = theHoveredReq[3];
+		let destination= theHoveredReq[4];
+		let path       = theHoveredReq[5];
+		let iface      = theHoveredReq[6];
+		let member     = theHoveredReq[7];
+
+		let t0 = theHoveredInterval[0];
+		let t1 = theHoveredInterval[1];
+
+		labels.push("Message type: " + msg_type);
+    labels.push("Serial      : " + serial);
+		labels.push("Sender      : " + sender);
+		labels.push("Destination : " + destination);
+		labels.push("Path        : " + path);
+		labels.push("Interface   : " + iface);
+		labels.push("Member      : " + member);
+
+		let w = 1, h = LINE_SPACING * labels.length + 2 * PAD;
+		for (let i=0; i<labels.length; i++) {
+			w = Math.max(w, ctx.measureText(labels[i]).width);
+		}
+		let dy = this.MouseState.y + DELTA_Y;
+		if (dy + h > height) {
+			dy = height - h;
+		}
+		let dx = this.MouseState.x;
+		if (RIGHT_MARGIN - dx < w) dx -= (w + 2 * PAD);
+
+		ctx.fillStyle = "rgba(0,0,0,0.5)";
+		ctx.fillRect(dx, dy, w + 2 * PAD, h);
+
+		ctx.textAlign = "left";
+		ctx.textBaseline = "middle";
+		ctx.fillStyle = "#FFFFFF";
+		for (let i=0; i<labels.length; i++) {
+			ctx.fillText(labels[i],
+					dx + PAD, dy + PAD + i * LINE_SPACING + LINE_SPACING/2);
+		}
+	}
+};
+
+class BoostASIOHandlerTimelineView extends TimelineView {
+	RenderToolTip(ctx, theHoveredReq, theHoveredInterval, toFixedPrecision, height) {
+    if (theHoveredReq == undefined) { return; }
+		const PAD = 2, DELTA_Y = 14;
+
+		let labels = [];
+		let create_time= theHoveredReq[2];
+		let enter_time = theHoveredReq[3];
+		let exit_time  = theHoveredReq[4];
+		let desc       = theHoveredReq[5];
+
+		let t0 = theHoveredInterval[0];
+		let t1 = theHoveredInterval[1];
+
+		labels.push("Creation time: " + create_time);
+    labels.push("Entry time   : " + enter_time);
+		labels.push("Exit time    : " + exit_time);
+		labels.push("Creation->Entry : " + (enter_time - create_time));
+		labels.push("Entry->Exit     : " + (exit_time - enter_time));
+		labels.push("Description  : " + desc);
+
+		let w = 1, h = LINE_SPACING * labels.length + 2 * PAD;
+		for (let i=0; i<labels.length; i++) {
+			w = Math.max(w, ctx.measureText(labels[i]).width);
+		}
+		let dy = this.MouseState.y + DELTA_Y;
+		if (dy + h > height) {
+			dy = height - h;
+		}
+		let dx = this.MouseState.x;
+		if (RIGHT_MARGIN - dx < w) dx -= (w + 2 * PAD);
+
+		ctx.fillStyle = "rgba(0,0,0,0.5)";
+		ctx.fillRect(dx, dy, w + 2 * PAD, h);
+
+		ctx.textAlign = "left";
+		ctx.textBaseline = "middle";
+		ctx.fillStyle = "#FFFFFF";
+		for (let i=0; i<labels.length; i++) {
+			ctx.fillText(labels[i],
+					dx + PAD, dy + PAD + i * LINE_SPACING + LINE_SPACING/2);
+		}
+	}
+}

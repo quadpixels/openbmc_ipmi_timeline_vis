@@ -3,9 +3,6 @@ const { fs     } = require("file-system")
 const { util   } = require("util")
 const { exec   } = require("child_process")
 
-// Starting of time line (for aligning IPMI and DBus view as well as bring the first request to t=0)
-var StartingUsec_IPMI = undefined;
-
 // Main view object
 var ipmi_timeline_view = new IPMITimelineView();
 
@@ -132,115 +129,6 @@ function OnCaptureStop() {
 	text_hostname.disabled = false
 }
 
-// The file may be either DBus dump or Boost Asio handler log
-document.getElementById("btn_open_file").addEventListener("click", function() {
-  console.log("Will open a dialog box ...");
-  const options = {
-    title: 'Open a file or folder',
-    //defaultPath: '/path/to/something/',
-    //buttonLabel: 'Do it',
-    /*filters: [
-      { name: 'xml', extensions: ['xml'] }
-    ],*/
-    //properties: ['showHiddenFiles'],
-    //message: 'This message will only be shown on macOS'
-  };
-  let x = dialog.showOpenDialogSync(options) + ""; // Convert to string
-  console.log("file name: " + x)
-  
-	// Determine file type
-	let is_asio_log = false;
-  const data = fs.readFileSync(x, {encoding:"utf-8"});
-	let lines = data.split("\n")
-	console.log("This file has " + lines.length + " lines");
-	for (let i=0; i<lines.length; i++) {
-		if (lines[i].indexOf("@asio") == 0) {
-			is_asio_log = true;
-			break;
-		}
-	}
-
-	if (is_asio_log) {
-		ShowBlocker("Loading Boost ASIO handler tracking log");
-    console.log("This file is a Boost Asio handler tracking log");
-	  ParseBoostHandlerTimeline(data);
-		OnGroupByConditionChanged_ASIO();
-		HideBlocker()
-		return;
-	}
-
-
-  // First try to parse using dbus-pcap
-	//dbus_pcap = spawn("python3", ["../Downloads/dbus-pcap", x], {shell:true});
-	var dbus_pcap_out1, dbus_pcap_out2; // Normal format and JSON format output from dbus-pcap
-	ShowBlocker("Running dbus-pcap, pass 1/2");
-	exec("python3 ../Downloads/dbus-pcap " + x, 
-		{ maxBuffer: 1024*1024*64 }, // 64 MB buffer
-		(error, stdout, stderr) => {
-		console.log("stdout len:" + stdout.length);
-		dbus_pcap_out1 = stdout;
-		ShowBlocker("Running dbus-pcap, pass 2/2");
-		exec("python3 ../Downloads/dbus-pcap --json " + x,
-			{ maxBuffer: 1024*1024*64 },
-			(error1, stdout1, stderr1) => {
-			dbus_pcap_out2 = stdout1;
-			// Parse 1
-			let lines = dbus_pcap_out1.split("\n");
-//			console.log(lines);
-			timestamps1 = []
-			for (let i=0; i<lines.length; i++) {
-				const l = lines[i].trim();
-				try {
-					if (l.length > 0) {
-						const l0 = l.substr(0, l.indexOf(":"));
-						const ts_usec = parseFloat(l0) * 1000.0;
-						if (!isNaN(ts_usec)) {
-							timestamps1.push(ts_usec)
-						} else {
-							console.log("NaN! " + l)
-						}
-					}
-				} catch(x) {
-					console.log(x)
-				}
-			}
-			Timestamps_DBus = timestamps1;
-
-			// Parse 2
-			temp1 = []
-			lines = dbus_pcap_out2.split("\n")
-			for (let i=0; i<lines.length; i++) {
-				try {
-					temp1.push(JSON.parse(lines[i]));
-				} catch (x) {
-					console.log("Line " + i + " could not be parsed");
-				}
-			}
-			Data_DBus = temp1.slice();
-
-			ShowBlocker("Processing dbus dump");
-			OnGroupByConditionChanged_DBus();
-			const v = dbus_timeline_view;
-			g_temp0 = timestamps1
-			let preproc = Preprocess_DBusPcap(temp1, timestamps1);
-			let grouped = Group_DBus(preproc, v.GroupBy);
-			GenerateTimeLine_DBus(grouped);
-			dbus_timeline_view.IsCanvasDirty = true;
-			HideBlocker()
-		});
-	});
-
-	if (false) {
-		document.getElementById("file_name").textContent = x
-		fs.readFile(x, { encoding:"utf-8" }, (err, data) => {
-			if (err) { console.log("Error in readFile: " + err) }
-			else {
-				ParseIPMIDump(data)
-			}
-		});
-	}
-});
-
 // Data
 var HistoryHistogram = []
 //var Data_IPMI = []
@@ -340,11 +228,21 @@ function ComputeHistogram(num_buckets = 30, is_free_x = true) {
 
 function Preprocess(data) {
   preprocessed = [];
-  StartingUsec_IPMI = undefined;
+  let StartingUsec_IPMI;
+  
+  if (g_StartingSec == undefined) {
+    StartingUsec_IPMI = undefined;
+  } else {
+    StartingUsec_IPMI = g_StartingSec * 1000000;
+  }
+  
   for (let i=0; i<data.length; i++) {
     let entry = data[i].slice();
     let lb = entry[2], ub = entry[3];
-    if (i == 0) { StartingUsec_IPMI = lb; }
+    
+    // Only when IPMI view is present (i.e. no DBus pcap is loaded)
+    if (i == 0 && StartingUsec_IPMI == undefined) { StartingUsec_IPMI = lb; }
+    
     entry[2] = lb - StartingUsec_IPMI;
     entry[3] = ub - StartingUsec_IPMI;
     preprocessed.push(entry);

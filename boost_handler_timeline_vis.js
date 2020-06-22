@@ -22,6 +22,20 @@ function FindFirstEntrySlot(slots) {
 	return i;
 }
 
+function SimplifyDesc(desc) {
+	const idx0 = desc.indexOf("0x");
+	if (idx0 == -1) return desc;
+	else {
+		const d1 = desc.substr(idx0+2);
+		let idx1 = 0;
+		while (idx1+1 < d1.length && (
+			(d1[idx1] >= '0' && d1[idx1] <= '9') ||
+			(d1[idx1] >= 'A' && d1[idx1] <= 'F') ||
+			(d1[idx1] >= 'a' && d1[idx1] <= 'f'))) { idx1++ }
+		return desc.substr(0, idx0) + d1.substr(idx1)
+	}
+}
+
 function ParseBoostHandlerTimeline(content) {
 	let parsed_entries = [];
   const lines = content.split("\n");
@@ -37,12 +51,16 @@ function ParseBoostHandlerTimeline(content) {
 		const tag = sp[0], ts = sp[1], action = sp[2], desc = sp[3];
 		let handler_id = -999;
 		let ts_sec = parseFloat(ts);
+		const simp_desc = SimplifyDesc(desc);
 
 		if (action.indexOf("*") != -1) {
 			const idx = action.indexOf("*");
 			const handler_id = parseInt(action.substr(idx+1));
       const level = FindFirstEntrySlot(slots);
-			let entry = [handler_id, level, ts_sec, undefined, undefined, desc, []]
+
+			// Create an entry here
+			let entry = [handler_id, level, ts_sec, undefined, undefined, desc, simp_desc, []]
+
       slots[level] = entry;
 			in_flight_id2level[handler_id] = level;
 		} else if (action[0] == '>') { // The program enters handler number X
@@ -74,7 +92,7 @@ function ParseBoostHandlerTimeline(content) {
 
 function Group_ASIO(preprocessed, group_by) {
   let grouped = { };
-	const IDXES = { "Layout Level":1, "Description":5 }
+	const IDXES = { "Layout Level":1, "Description":5, "Description1":6 }
 	for (var n=0; n<preprocessed.length; n++) {
 		var key = ""
 		for (var i=0; i<group_by.length; i++) {
@@ -88,7 +106,7 @@ function Group_ASIO(preprocessed, group_by) {
 }
 
 function OnGroupByConditionChanged_ASIO() {
-  var tags = ["bah1", "bah2"];
+  var tags = ["bah1", "bah2", "bah3"];
 	const v = boost_asio_handler_timeline_view;
 	v.GroupBy    = [];
 	v.GroupByStr = "";
@@ -119,7 +137,7 @@ function GenerateTimeLine_ASIO(grouped) {
 		line = [];
 		for (let j=0; j<grouped[sortedKeys[i]].length; j++) {
 			let entry = grouped[sortedKeys[i]][j];
-			let t0 = parseFloat(entry[2]);
+			let t0 = parseFloat(entry[3]);
 			let t1 = parseFloat(entry[4]);
 
 			if (was_starting_time_undefined) {

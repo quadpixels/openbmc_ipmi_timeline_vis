@@ -93,7 +93,7 @@ async function LaunchRZ() {
     }
   } catch(err) { }
 
-  g_rz = spawn("rz", ["-vv", "-b", "-E"], {shell:true})
+  g_rz = spawn("rz", ["-vv", "-b", "-E", "-w", "32767"], {shell:true})
   g_rz.stdout.on("data", (data)=>{
 //    console.log("[rz] received " + data.length + " B")
 //    console.log("[rz] " + data + " ")
@@ -176,17 +176,17 @@ function QueueBMCConsoleHello(secs = 3) {
   }, secs*1000)
 }
 
+// The command line needed to access the BMC. The expectation is
+// executing this command brings the user to the BMC's console.
 function GetCMDLine() {
   let v = text_hostname.value.split(" ")
-	if (v.length == 1) {
-    return ["megapede_client", v]
-	} else {
-		return [v[0], v.slice(1,v.length)]
-	}
+	return [v[0], v.slice(1,v.length)]
 }
 
 async function StartCapture(host) {
   // Disable buttons
+  HideWelcomeScreen();
+  ShowIPMITimeline();
   let args = GetCMDLine()
   btn_start_capture.disabled  = true
   select_capture_mode.disabled = true
@@ -313,7 +313,7 @@ async function StartCapture(host) {
             capture_info.textContent = "Starting rz and sz"
           }
           g_capture_state = "sz start"
-          g_child.stdin.write("sz -w 65536 -y /run/initramfs/DBUS_MONITOR.tar.gz\n")
+          g_child.stdin.write("sz -w 32767 -y /run/initramfs/DBUS_MONITOR.tar.gz\n")
 //        g_child.stdin.write("sz -w 65536 -y /tmp/haha\n")
           g_capture_state = "sz sending"
           LaunchRZ()

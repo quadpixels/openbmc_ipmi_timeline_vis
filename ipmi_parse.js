@@ -307,14 +307,26 @@ function MunchLines() {
 function UpdateLayout() {
   if (g_ipmi_parsed_entries.length > 0) {
   	// Write to Data_IPMI
-		let ts0 = g_ipmi_parsed_entries[0].start_usec
+  	let ts0 = g_ipmi_parsed_entries[0].start_usec
 		let ts1 = g_ipmi_parsed_entries[g_ipmi_parsed_entries.length-1].end_usec
+		
+		// When calling from DBus PCap loader, the following happens
+		// >> OnGroupByConditionChanged
+		//   >> Preprocess  <-- Time shift will happen here
+		// So, we don't do time-shifting here
+		let time_shift;
+		if (g_StartingSec != undefined) {
+		  time_shift = BigInt(0);
+		} else { // This is during live capture mode
+		  time_shift = ts0;
+		}
+		
   	Data_IPMI = []
   	for (i=0; i<g_ipmi_parsed_entries.length; i++) {
   	  let entry = g_ipmi_parsed_entries[i]
   		let x = [ entry.netfn, entry.cmd, 
-			  parseInt(entry.start_usec - ts0),
-				parseInt(entry.end_usec   - ts0),
+			  parseInt(entry.start_usec - time_shift),
+				parseInt(entry.end_usec   - time_shift),
 				entry.request,
 				entry.response
 			]

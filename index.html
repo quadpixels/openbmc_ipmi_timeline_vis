@@ -10,7 +10,7 @@
   </head>
   <body>
     <div id="div_title"><span>
-    <b>IPMI Request Capturer &amp; Visualizer</b>
+    <b>DBus &amp; IPMI Request Visualizer</b>
 		</span>
 		</div>
     <div id="title_mode_select">
@@ -29,7 +29,7 @@
 		</div>
 		<div id="title_capture">
 			<span><b>Capture: </b></span>
-			<input type="text" id="text_hostname" value="mvnn3"></input>
+			<input type="text" id="text_hostname" value=""></input>
 			<button id="btn_start_capture">Start Capture</button>
 			<button id="btn_stop_capture">Stop Capture</button>
 			<select id="select_capture_mode">
@@ -54,23 +54,34 @@
 				<input type="checkbox" id="dbus_column6" value="Interface" checked>Interface</input>
 				<input type="checkbox" id="dbus_column7" value="Member">Member</input>
     </span>
-		&nbsp;
     <span id="span_group_by_ipmi">
 			  Group IPMI Requests by:
 				<input type="checkbox" id="c1" value="NetFN" checked>NetFN</input>
 				<input type="checkbox" id="c2" value="CMD"     checked>CMD</input>
     </span>
-		&nbsp;
-    <span id="span_group_by_boost_asio_handler">
+    <div id="span_group_by_boost_asio_handler">
 			  Group Asio Handlers by:
 				<input type="checkbox" id="bah1" value="Layout Level" checked>Layout Level</input>
 				<input type="checkbox" id="bah2" value="Description">Description</input>
-    </span>
+				<input type="checkbox" id="bah3" value="Description1">Description w/ addresses removed</input>
+    </div>
 		</div>
       
 		<div id="div_canvas">
 				<div id="blocker">
 						<div id="blocker_caption">AAAAA</div>
+				</div>
+				<div id="welcome_screen">
+						<div id="welcome_screen_content">
+								<br/><span>Welcome! Please <button id="btn_open_file2">Open file</button> to get timeline view/s.<span>
+								<br/>
+								<br/>Supported file types:
+								<ol>
+										<li>DBus pcap file</li>
+										<li>Boost ASIO handler log file</li>
+								</ol>
+								One file from each type (2 files in total) can be viewed simultaneously.
+						</div>
 				</div>
 				<canvas id="my_canvas_dbus" width="1400" height="300"></canvas>
 				<canvas id="my_canvas_ipmi" width="1400" height="200"></canvas>

@@ -51,6 +51,8 @@ class TimelineView {
 		this.linked_views = [];
   }
 
+  IsEmpty() { return (this.Intervals.length < 1); }
+  
 	GetTitleWidthLimit() {
 		if (this.IsTimeDistributionEnabled == true) { return 32; }
 		else { return 64; }

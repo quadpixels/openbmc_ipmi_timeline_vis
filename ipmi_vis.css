@@ -1,5 +1,6 @@
 body {
-	font-family: "sans"
+	font-family: "monospace";
+	font-size: 12px;
 }
 
 #div_title, #div_group_by, #div_canvas, #div_navi_and_replay, #ipmi_replay {
@@ -7,7 +8,13 @@ body {
 }
 
 #my_canvas, #capture_info {
-  border: 1px grey dashed
+  border: 1px grey dashed;
+}
+
+#capture_info {
+  width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 #ipmi_replay_output {
@@ -37,6 +44,11 @@ body {
 
 #my_canvas_boost_asio_handler, #span_group_by_boost_asio_handler {
 	border: 1px #c03030 solid
+}
+
+#my_canvas_dbus, #my_canvas_ipmi, #my_canvas_boost_asio_handler {
+  margin-left: auto;
+  margin-right: auto;
 }
 
 #blocker {

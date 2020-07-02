@@ -34,11 +34,12 @@
 			<button id="btn_stop_capture">Stop Capture</button>
 			<select id="select_capture_mode">
 				<option value="live">Live</option>
-				<option value="staged">Staged</option>
+				<option value="staged">Staged (IPMI detailed)</option>
+				<option value="staged2">Staged (DBus + IPMI)</option>
 			</select>
     </div>    
 		<div id="title_capture_info">
-			<span id="capture_info">Info will appear here</span>
+			<div id="capture_info">Info will appear here</div>
 		</div>
 
     <hr/> 
@@ -119,7 +120,6 @@
     <br/>
 
     <!-- You can also require other files to run in this process -->
-    <script src="./dummy_data.js"></script>
     <script src="./timeline_view.js"></script>
     <script src="./dbus_timeline_vis.js"></script>
     <script src="./ipmi_timeline_vis.js"></script>

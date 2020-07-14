@@ -242,7 +242,7 @@ function StopCapture() {
     case 'staged':
       ClearAllPendingTimeouts();
       g_child.stdin.write(
-          'echo ">>>>>>" && killall dbus-monitor && echo "<<<<<<" \n\n\n\n');
+          'echo ">>>>>>" && killall busctl && echo "<<<<<<" \n\n\n\n');
       g_capture_state = 'stopping';
       capture_info.textContent = 'Stopping dbus-monitor';
     case 'staged2': 
@@ -299,7 +299,9 @@ async function StartCapture(host) {
     var t = currTimestamp();
     {
       switch (g_capture_state) {
-        case 'not started':
+        case 'not started': // Do nothing
+          break;
+        case 'started':
           attempt++;
           console.log('attempt ' + attempt);
           g_child.stdin.write('echo "haha" \n');

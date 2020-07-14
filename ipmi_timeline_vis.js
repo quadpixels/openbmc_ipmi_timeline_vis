@@ -5,6 +5,7 @@ const {exec} = require('child_process');
 
 // Main view object
 var ipmi_timeline_view = new IPMITimelineView();
+ipmi_timeline_view.IsTimeDistributionEnabled = true;
 
 var btn_start_capture = document.getElementById('btn_start_capture');
 var select_capture_mode = document.getElementById('select_capture_mode');
@@ -81,6 +82,7 @@ document.getElementById('gen_replay_ipmid_new')
 document.getElementById('btn_start_capture')
     .addEventListener('click', function() {
       let h = document.getElementById('text_hostname').value;
+      g_capture_state = 'started';
       StartCapture(h);
     });
 
@@ -206,7 +208,9 @@ const HISTOGRAM_W = 100, HISTOGRAM_H = LINE_SPACING;
 const HISTOGRAM_X = 270;
 // If some request's time is beyond the right tail, it's considered "too long"
 // If some request's time is below the left tail it's considered "good"
-const HISTOGRAM_LEFT_TAIL_WIDTH = 0.05, HISTOGRAM_RIGHT_TAIL_WIDTH = 0.05;
+//const HISTOGRAM_LEFT_TAIL_WIDTH = 0.05, HISTOGRAM_RIGHT_TAIL_WIDTH = 0.05;
+// temporarily disabled for now
+const HISTOGRAM_LEFT_TAIL_WIDTH = -1, HISTOGRAM_RIGHT_TAIL_WIDTH = -1;
 
 let IpmiVizHistogramImageData = {};  // Image data for rendered histogram
 

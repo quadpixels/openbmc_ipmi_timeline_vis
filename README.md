@@ -4,7 +4,9 @@ This program captures & visualizes IPMI traffic on a BMC running OpenBMC. It all
 
 This program is based on Electron, and should be compatible with Windows, Linux, Mac and ChromeOS's Linux environment.
 
-To build and run, a user would first need to install node.js and npm (Node.js package manager). To install node.js on a Ubuntu/Debian-based system:
+The following commands are all run from this folder (where `index.html` is located.)
+
+To build and run, a user would first need to install node.js and npm (Node.js package manager), and then checkout `dbus-pcap` to this folder. To install node.js on a Ubuntu/Debian-based system:
 
 1. `curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -`
 
@@ -21,7 +23,13 @@ $ npm --version
 6.14.4
 ```
 
-With `npm` and `node.js` installed, enter the root directory of this project, and run the following commands:
+Then, obtain `dbus-pcap` from [https://raw.githubusercontent.com/openbmc/openbmc-tools/master/amboar/obmc-scripts/dbus-pcap/dbus-pcap](https://raw.githubusercontent.com/openbmc/openbmc-tools/master/amboar/obmc-scripts/dbus-pcap/dbus-pcap):
+
+1. `wget https://raw.githubusercontent.com/openbmc/openbmc-tools/master/amboar/obmc-scripts/dbus-pcap/dbus-pcap`
+
+2. `chmod +x dbus-pcap`
+
+With `npm`, `node.js` installed and `dbus-pcap` downloaded to this folder, run the following commands:
 
 1. `npm install`
 

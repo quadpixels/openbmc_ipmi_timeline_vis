@@ -155,6 +155,14 @@ function IsIntersected(i0, i1) {
   return (!((i0[1] < i1[0]) || (i0[0] > i1[1])));
 }
 
+function IsIntersectedPixelCoords(i0, i1) {
+  if (i0[1] == undefined || isNaN(i0[1])) {
+    return (Math.abs(i0[0] - i1[0]) < 5);
+  } else {
+    return (IsIntersected(i0, i1));
+  }
+}
+
 var NetFnCmdToDescription = {
   '6, 1': 'App-GetDeviceId',
   '6, 3': 'App-WarmReset',
@@ -233,8 +241,6 @@ function ComputeHistogram(num_buckets = 30, is_free_x = true) {
     global_lb = Math.min(l, global_lb);
     global_ub = Math.max(u, global_ub);
   }
-
-  console.log('global lb ub:' + global_lb + ' ' + global_ub);
 
   HistoryHistogram = [];
   for (let i = 0; i < Intervals.length; i++) {
@@ -332,7 +338,8 @@ function GenerateTimeLine(grouped) {
       let entry = grouped[sortedKeys[i]][j];
       // Lower bound, Upper bound, and a reference to the original request
       line.push([
-        parseFloat(entry[2]) / 1000000, parseFloat(entry[3]) / 1000000, entry
+        parseFloat(entry[2]) / 1000000, parseFloat(entry[3]) / 1000000, entry,
+        "ok"
       ]);
     }
     Intervals.push(line);

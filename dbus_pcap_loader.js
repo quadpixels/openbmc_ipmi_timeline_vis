@@ -13,13 +13,13 @@ function OpenDBusPcapFile(file_name) {
       dbus_pcap_out2;  // Normal format and JSON format output from dbus-pcap
   ShowBlocker('Running dbus-pcap, pass 1/2');
   exec(
-    'python3 dbus-pcap ' + file_name, {maxBuffer: 1024 * 1024 * 64},  // 64 MB buffer
+    'python3 dbus-pcap ' + file_name, {maxBuffer: 1024 * 1024 * 1024},  // 1GB buffer
     (error, stdout, stderr) => {
       console.log('stdout len:' + stdout.length);
       dbus_pcap_out1 = stdout;
       ShowBlocker('Running dbus-pcap, pass 2/2');
       exec(
-        'python3 dbus-pcap --json ' + file_name, {maxBuffer: 1024 * 1024 * 64},
+        'python3 dbus-pcap --json ' + file_name, {maxBuffer: 1024 * 1024 * 1024},
         (error1, stdout1, stderr1) => {
           dbus_pcap_out2 = stdout1;
           // Pass 1
@@ -49,7 +49,7 @@ function OpenDBusPcapFile(file_name) {
             try {
               temp1.push(JSON.parse(lines[i]));
             } catch (x) {
-              console.log('Line ' + i + ' could not be parsed');
+              console.log('Line ' + i + ' could not be parsed, line:' + lines[i]);
             }
           }
           Data_DBus = temp1.slice();
@@ -96,11 +96,18 @@ function Preprocess_DBusPcap(data, timestamps) {
 
     // Fields we are interested in
     const fixed_header = packet[0];  // is an [Array(5), Array(6)]
+    
+    if (fixed_header == undefined) { // for hacked dbus-pcap
+      console.log(packet);
+      continue;
+    }
+    
     const payload = packet[1];
     const ty = fixed_header[0][1];
     let timestamp = timestamps[i];
     let timestamp_end = undefined;
     const IDX_TIMESTAMP_END = 8;
+    const IDX_MC_OUTCOME = 9; // Outcome of method call
 
     let serial, path, member, iface, destination, sender;
     // Same as the format of the Dummy data set
@@ -137,7 +144,7 @@ function Preprocess_DBusPcap(data, timestamps) {
         sender = fixed_header[1][4][1];
         let entry = [
           'mc', timestamp, serial, sender, destination, path, iface, member,
-          timestamp_end, payload
+          timestamp_end, payload, ""
         ];
 
         // Legacy IPMI interface uses method call for IPMI response
@@ -168,6 +175,7 @@ function Preprocess_DBusPcap(data, timestamps) {
           let x = in_flight[reply_serial];
           delete in_flight[reply_serial];
           x[IDX_TIMESTAMP_END] = timestamp;
+          x[IDX_MC_OUTCOME] = "ok";
         }
 
         if (reply_serial in in_flight_ipmi) {
@@ -181,6 +189,16 @@ function Preprocess_DBusPcap(data, timestamps) {
           g_ipmi_parsed_entries.push(x);
         }
         break;
+      }
+      
+      case 3: { // error reply
+        let reply_serial = fixed_header[1][0][1];
+        if (reply_serial in in_flight) {
+          let x = in_flight[reply_serial];
+          delete in_flight[reply_serial];
+          x[IDX_TIMESTAMP_END] = timestamp;
+          x[IDX_MC_OUTCOME] = "error";
+        }
       }
     }
   }

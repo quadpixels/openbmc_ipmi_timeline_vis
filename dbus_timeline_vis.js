@@ -94,7 +94,8 @@ function GenerateTimeLine_DBus(grouped) {
         g_StartingSec = t0;
       }
       g_StartingSec = Math.min(g_StartingSec, t0);
-      line.push([t0, t1, entry]);
+      const outcome = entry[9];
+      line.push([t0, t1, entry, outcome]);
     }
     intervals.push(line);
   }

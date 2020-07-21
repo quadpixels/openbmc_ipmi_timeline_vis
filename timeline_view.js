@@ -488,7 +488,8 @@ class TimelineView {
 
       // Time Axis Breaks
       const breakWidths = [
-        86400, 10800, 3600,   60,     30,     10,      5,       2,
+        86400, 10800, 3600,   1800, 1200, 600, 300, 120, 
+        60,     30,     10,      5,       2,
         1,     0.5,   0.2,    0.1,    0.05,   0.02,    0.01,    0.005,
         0.002, 0.001, 0.0005, 0.0002, 0.0001, 0.00005, 0.00002, 0.00001
       ];
@@ -549,6 +550,7 @@ class TimelineView {
       let isAggregateSelection = false;
       if (this.IsHighlighted()) isAggregateSelection = true;
       let numVisibleRequestsPerLine = [];
+      let numFailedRequestsPerLine = [];
       let totalSecondsPerLine = [];
 
       // Range of Titles that were displayed
@@ -595,6 +597,7 @@ class TimelineView {
             0;                               // #entries beyond the upper bound
         let numVisibleRequestsCurrLine = 0;  // #entries visible
         let totalSecsCurrLine = 0;           // Total duration in seconds
+        let numFailedRequestsCurrLine = 0;
 
         const intervals_j = this.Intervals[j];
         if (intervals_j != undefined) {
@@ -623,6 +626,11 @@ class TimelineView {
               numOverflowEntriesToTheRight++;
               continue;
             }
+            // Failed request
+            if (ub == undefined && lb < this.UpperBoundTime) {
+              numOverflowEntriesToTheLeft++;
+              continue;
+            }
 
             let dx0 = MapXCoord(
                     lb, LEFT_MARGIN, RIGHT_MARGIN, this.LowerBoundTime,
@@ -641,21 +649,28 @@ class TimelineView {
               ctx.fillRect(dx0, dy0, dw, dy1 - dy0);
             }
 
+            let isCurrentReqHovered = false;
             // Intersect with mouse using pixel coordinates
-            if (IsIntersected(
+            if (IsIntersectedPixelCoords(
                     [dx0, dx0 + dw], [this.MouseState.x, this.MouseState.x]) &&
-                IsIntersected(
+                IsIntersectedPixelCoords(
                     [dy0, dy1], [this.MouseState.y, this.MouseState.y])) {
               ctx.fillStyle = 'rgba(255,255,0,0.5)';
               ctx.fillRect(dx0, dy0, dw, dy1 - dy0);
               theHoveredReq = this.Intervals[j][i][2];
               theHoveredInterval = this.Intervals[j][i];
+              isCurrentReqHovered = true;
             }
 
             ctx.lineWidth = 0.5;
 
+            
             // If this request is taking too long/is quick enough, use red/green
             let entry = HistogramThresholds[this.Titles[j]];
+            
+            let isError = false;
+            if (intervals_j[i][3] == "error") { isError = true; }
+            
             if (entry != undefined) {
               if (entry[0][1] != undefined && durationUsec < entry[0][1]) {
                 ctx.strokeStyle = '#0F0';
@@ -669,17 +684,40 @@ class TimelineView {
               ctx.strokeStyle = '#000';
             }
 
-            ctx.strokeRect(dx0, dy0, dw, dy1 - dy0);
-            numVisibleRequests++;
+            const duration = this.Intervals[j][i][1] - this.Intervals[j][i][0];
+            if (!isNaN(duration)) {
+                if (isError) {
+                  ctx.fillStyle = "rgba(192, 128, 128, 0.8)";
+                  ctx.fillRect(dx0, dy0, dw, dy1-dy0);
+                  ctx.strokeStyle = "rgba(192, 128, 128, 1)";
+                }
+                
+                ctx.strokeRect(dx0, dy0, dw, dy1 - dy0);
+                numVisibleRequests++;
+              } else {
+                // This entry has only a beginning and not an end
+                // perhaps the original method call did not return
+                if (isCurrentReqHovered) { ctx.fillStyle = "rgba(192, 192, 0, 0.8)"; }
+                else { ctx.fillStyle = "rgba(255, 128, 128, 0.8)"; }
+                ctx.beginPath();
+                ctx.arc(dx0, (dy0+dy1)/2, HISTOGRAM_H*0.17, 0, 2*Math.PI);
+                ctx.fill();
+              }
 
+            
             // Affects whether this req will be reflected in the aggregate info
             //     section
             if ((isAggregateSelection == false) ||
                 (isAggregateSelection == true && isHighlighted == true)) {
-              numVisibleRequestsCurrLine++;
-              totalSecsCurrLine +=
-                  (this.Intervals[j][i][1] - this.Intervals[j][i][0]);
-
+            
+            
+              if (!isNaN(duration)) {
+                numVisibleRequestsCurrLine++;
+                totalSecsCurrLine += duration;
+              } else {
+                numFailedRequestsCurrLine++;
+              }
+              
               // If a histogram exists for Titles[j], process the highlighted
               //     histogram buckets
               if (GetHistoryHistogram()[this.Titles[j]] != undefined) {
@@ -745,6 +783,7 @@ class TimelineView {
         }
         y = y + LINE_SPACING;
         numVisibleRequestsPerLine.push(numVisibleRequestsCurrLine);
+        numFailedRequestsPerLine.push(numFailedRequestsCurrLine);
         totalSecondsPerLine.push(totalSecsCurrLine);
 
         title_end_idx = j;
@@ -805,10 +844,10 @@ class TimelineView {
       let totalOccs = 0, totalSecs = 0;
       if (this.IsHighlighted()) {
         ctx.fillStyle = '#00F';
-        ctx.fillText('Number/time in selection', 3, TEXT_Y0);
+        ctx.fillText('#OK + Failed/time in selection', 3, TEXT_Y0);
       } else {
         ctx.fillStyle = '#000';
-        ctx.fillText('Number/time in viewport', 3, TEXT_Y0);
+        ctx.fillText('#OK + Failed/time in viewport', 3, TEXT_Y0);
       }
 
       let timeDesc = '';
@@ -822,7 +861,8 @@ class TimelineView {
           timeDesc = totalSeconds.toFixed(toFixedPrecision) + 's';
         }
         ctx.fillText(
-            '' + numVisibleRequestsPerLine[i] + ' / ' + timeDesc, 3, y);
+            '' + numVisibleRequestsPerLine[i] + '+' +
+            numFailedRequestsPerLine[i] + ' / ' + timeDesc, 3, y);
         totalOccs += numVisibleRequestsPerLine[i];
         totalSecs += totalSeconds;
       }

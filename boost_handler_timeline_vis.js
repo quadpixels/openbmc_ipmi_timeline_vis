@@ -151,7 +151,7 @@ function GenerateTimeLine_ASIO(grouped) {
         g_StartingSec = Math.min(g_StartingSec, t0);
       }
 
-      line.push([t0, t1, entry, "ok"]);
+      line.push([t0, t1, entry, 'ok']);
     }
     intervals.push(line);
   }

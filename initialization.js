@@ -33,7 +33,7 @@ function OpenFileHandler() {
     HideBlocker();
     return;
   }
-  
+
   OpenDBusPcapFile(x);
 }
 

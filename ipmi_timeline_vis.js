@@ -25,35 +25,30 @@ document.getElementById('c2').addEventListener(
 
 // Zoom in button
 document.getElementById('btn_zoom_in').addEventListener('click', function() {
-  BeginZoomAnimation(0.5);
   ipmi_timeline_view.BeginZoomAnimation(0.5);
   boost_asio_handler_timeline_view.BeginZoomAnimation(0.5);
 });
 
 // Zoom out button
 document.getElementById('btn_zoom_out').addEventListener('click', function() {
-  BeginZoomAnimation(-1);
   ipmi_timeline_view.BeginZoomAnimation(-1);
   boost_asio_handler_timeline_view.BeginZoomAnimation(-1);
 });
 
 // Pan left button
 document.getElementById('btn_pan_left').addEventListener('click', function() {
-  BeginPanScreenAnimaton(-0.5);
   ipmi_timeline_view.BeginPanScreenAnimaton(-0.5);
   boost_asio_handler_timeline_view.BeginPanScreenAnimaton(-0.5);
 });
 
 // Pan right button
 document.getElementById('btn_pan_right').addEventListener('click', function() {
-  BeginPanScreenAnimaton(0.5);
   ipmi_timeline_view.BeginPanScreenAnimaton(0.5);
   boost_asio_handler_timeline_view.BeginPanScreenAnimaton(0.5);
 });
 
 // Reset zoom button
 document.getElementById('btn_zoom_reset').addEventListener('click', function() {
-  BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
   ipmi_timeline_view.BeginSetBoundaryAnimation(
       RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
   dbus_timeline_view.BeginSetBoundaryAnimation(
@@ -216,7 +211,7 @@ const HISTOGRAM_W = 100, HISTOGRAM_H = LINE_SPACING;
 const HISTOGRAM_X = 270;
 // If some request's time is beyond the right tail, it's considered "too long"
 // If some request's time is below the left tail it's considered "good"
-//const HISTOGRAM_LEFT_TAIL_WIDTH = 0.05, HISTOGRAM_RIGHT_TAIL_WIDTH = 0.05;
+// const HISTOGRAM_LEFT_TAIL_WIDTH = 0.05, HISTOGRAM_RIGHT_TAIL_WIDTH = 0.05;
 // temporarily disabled for now
 const HISTOGRAM_LEFT_TAIL_WIDTH = -1, HISTOGRAM_RIGHT_TAIL_WIDTH = -1;
 
@@ -339,7 +334,7 @@ function GenerateTimeLine(grouped) {
       // Lower bound, Upper bound, and a reference to the original request
       line.push([
         parseFloat(entry[2]) / 1000000, parseFloat(entry[3]) / 1000000, entry,
-        "ok"
+        'ok'
       ]);
     }
     Intervals.push(line);
@@ -380,172 +375,6 @@ function MapXCoord(x, left_margin, right_margin, rl, rr) {
     ret = right_margin;
   }
   return ret;
-}
-
-function Zoom(dz, mid = undefined) {
-  if (CurrShiftFlag) dz *= 2;
-  if (dz != 0) {
-    if (mid == undefined) {
-      mid = (LowerBoundTime + UpperBoundTime) / 2;
-    }
-    LowerBoundTime = mid - (mid - LowerBoundTime) * (1 - dz);
-    UpperBoundTime = mid + (UpperBoundTime - mid) * (1 - dz);
-    IsCanvasDirty = true;
-    IsAnimating = false;
-  }
-}
-
-function BeginZoomAnimation(dz, mid = undefined) {
-  if (mid == undefined) {
-    mid = (LowerBoundTime + UpperBoundTime) / 2;
-  }
-  LowerBoundTimeTarget = mid - (mid - LowerBoundTime) * (1 - dz);
-  UpperBoundTimeTarget = mid + (UpperBoundTime - mid) * (1 - dz);
-  IsCanvasDirty = true;
-  IsAnimating = true;
-}
-
-function BeginPanScreenAnimaton(delta_screens) {
-  let deltat = (UpperBoundTime - LowerBoundTime) * delta_screens;
-  BeginSetBoundaryAnimation(LowerBoundTime + deltat, UpperBoundTime + deltat);
-}
-
-function BeginSetBoundaryAnimation(lt, rt) {
-  IsAnimating = true;
-  LowerBoundTimeTarget = lt;
-  UpperBoundTimeTarget = rt;
-}
-
-function BeginWarpToRequestAnimation(req) {
-  let mid_new = (req[0] + req[1]) / 2;
-  let mid = (LowerBoundTime + UpperBoundTime) / 2;
-  let lt = LowerBoundTime + (mid_new - mid);
-  let rt = UpperBoundTime + (mid_new - mid);
-  BeginSetBoundaryAnimation(lt, rt);
-}
-
-function UpdateAnimation() {
-  const EPS = 1e-3;
-  if (Math.abs(LowerBoundTime - LowerBoundTimeTarget) < EPS &&
-      Math.abs(UpperBoundTime - UpperBoundTimeTarget) < EPS) {
-    LowerBoundTime = LowerBoundTimeTarget;
-    UpperBoundTime = UpperBoundTimeTarget;
-    IsAnimating = false;
-  }
-  if (IsAnimating) {
-    let t = 0.80;
-    LowerBoundTime = LowerBoundTime * t + LowerBoundTimeTarget * (1 - t);
-    UpperBoundTime = UpperBoundTime * t + UpperBoundTimeTarget * (1 - t);
-    IsCanvasDirty = true;
-  }
-}
-
-function GetHistoryHistogram() {
-  return HistoryHistogram;
-}
-
-function RenderHistogramForImageData(ctx, key) {
-  let PAD = 1,   // To make up for the extra stroke width
-      PAD2 = 2;  // To preserve some space at both ends of the histogram
-
-  let cumDensity0 = 0, cumDensity1 = 0;
-
-  //      Left normalized index  Left value  Right normalized index, Right value
-  let threshEntry = [[undefined, undefined], [undefined, undefined]];
-  const x = 0, y = 0, w = HISTOGRAM_W, h = HISTOGRAM_H;
-  let hist = GetHistoryHistogram()[key];
-  if (hist == undefined) return;
-
-  let buckets = hist[2];
-  let dw = w * 1.0 / buckets.length;
-  let maxCount = 0, totalCount = 0;
-  for (let i = 0; i < buckets.length; i++) {
-    if (maxCount < buckets[i]) {
-      maxCount = buckets[i];
-    }
-    totalCount += buckets[i];
-  }
-  ctx.fillStyle = '#FFF';
-  ctx.fillRect(x, y, w, h);
-
-  ctx.strokeStyle = '#AAA';
-  ctx.fillStyle = '#000';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x + PAD, y + PAD, w - 2 * PAD, h - 2 * PAD);
-  for (let i = 0; i < buckets.length; i++) {
-    const bucketsLen = buckets.length;
-    if (buckets[i] > 0) {
-      let dx0 = x + PAD2 + (w - 2 * PAD2) * 1.0 * i / buckets.length,
-          dx1 = x + PAD2 + (w - 2 * PAD2) * 1.0 * (i + 1) / buckets.length,
-          dy0 = y + h - h * 1.0 * buckets[i] / maxCount, dy1 = y + h;
-      let delta_density = buckets[i] / totalCount;
-      cumDensity0 = cumDensity1;
-      cumDensity1 += delta_density;
-
-      // Write thresholds
-      if (cumDensity0 < HISTOGRAM_LEFT_TAIL_WIDTH &&
-          cumDensity1 >= HISTOGRAM_LEFT_TAIL_WIDTH) {
-        threshEntry[0][0] = i / buckets.length;
-        threshEntry[0][1] = hist[0] + (hist[1] - hist[0]) / bucketsLen * i;
-      }
-      if (cumDensity0 < 1 - HISTOGRAM_RIGHT_TAIL_WIDTH &&
-          cumDensity1 >= 1 - HISTOGRAM_RIGHT_TAIL_WIDTH) {
-        threshEntry[1][0] = (i - 1) / buckets.length;
-        threshEntry[1][1] =
-            hist[0] + (hist[1] - hist[0]) / bucketsLen * (i - 1);
-      }
-
-      ctx.fillRect(dx0, dy0, dx1 - dx0, dy1 - dy0);
-    }
-  }
-
-  // Mark the threshold regions
-  ctx.fillStyle = 'rgba(0,255,0,0.1)';
-  let dx = x + PAD2;
-  dw = (w - 2 * PAD2) * 1.0 * threshEntry[0][0];
-  ctx.fillRect(dx, y, dw, h);
-
-  ctx.fillStyle = 'rgba(255,0,0,0.1)';
-  ctx.beginPath();
-  dx = x + PAD2 + (w - 2 * PAD2) * 1.0 * threshEntry[1][0];
-  dw = (w - 2 * PAD2) * 1.0 * (1 - threshEntry[1][0]);
-  ctx.fillRect(dx, y, dw, h);
-
-  IsCanvasDirty = true;
-  return [ctx.getImageData(x, y, w, h), threshEntry];
-}
-
-function RenderHistogram(ctx, key, xMid, yMid) {
-  if (GetHistoryHistogram()[key] == undefined) {
-    return;
-  }
-  if (IpmiVizHistogramImageData[key] == undefined) {
-    return;
-  }
-  let hist = GetHistoryHistogram()[key];
-  ctx.putImageData(
-      IpmiVizHistogramImageData[key], xMid - HISTOGRAM_W / 2,
-      yMid - HISTOGRAM_H / 2);
-
-  let ub = '';  // Upper bound label
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#000';
-  if (hist[1] > 1000) {
-    ub = (hist[1] / 1000.0).toFixed(1) + 'ms';
-  } else {
-    ub = hist[1].toFixed(1) + 'us';
-  }
-  ctx.fillText(ub, xMid + HISTOGRAM_W / 2, yMid);
-
-  let lb = '';  // Lower bound label
-  if (hist[0] > 1000) {
-    lb = (hist[0] / 1000.0).toFixed(1) + 'ms';
-  } else {
-    lb = hist[0].toFixed(1) + 'us';
-  }
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(lb, xMid - HISTOGRAM_W / 2, yMid);
 }
 
 function draw_timeline(ctx) {

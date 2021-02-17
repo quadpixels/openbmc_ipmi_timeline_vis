@@ -416,8 +416,22 @@ function MunchLines() {
       ', |inflight|=' + Object.keys(g_ipmi_in_flight).length);
 }
 
-function UpdateLayout() {
+let last_update_time = 0;  // Millis since Unix Epoch
+function UpdateLayout(level) {
+  const this_update_time = new Date().getTime();
+  const over_1s = (this_update_time - last_update_time > 1000);
+  if (!over_1s) {
+    if (level > 0) {
+      setTimeout(function() {
+        UpdateLayout(level - 1);
+      }, 1000);
+    } else {
+      return;
+    }
+  }
+
   if (g_ipmi_parsed_entries.length > 0) {
+    last_update_time = this_update_time;
     // Write to Data_IPMI
     let ts0 = g_ipmi_parsed_entries[0].start_usec;
     let ts1 = g_ipmi_parsed_entries[g_ipmi_parsed_entries.length - 1].end_usec;
@@ -451,7 +465,8 @@ function UpdateLayout() {
     // Perform layout again
     IsCanvasDirty = true;
     OnGroupByConditionChanged();
-    BeginSetBoundaryAnimation(RANGE_LEFT_INIT, RANGE_RIGHT_INIT);
+    ipmi_timeline_view.BeginSetBoundaryAnimation(
+        RANGE_LEFT_INIT, RANGE_RIGHT_INIT);
     ComputeHistogram();
   } else {
     console.log('No entries parsed');

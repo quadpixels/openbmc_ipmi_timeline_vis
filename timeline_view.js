@@ -5,6 +5,116 @@ var RANGE_RIGHT_INIT = 300;
 // Global timeline start
 var g_StartingSec = undefined;
 
+
+
+function GetHistoryHistogram() {
+  return HistoryHistogram;
+}
+
+function RenderHistogramForImageData(ctx, key) {
+  let PAD = 1,   // To make up for the extra stroke width
+      PAD2 = 2;  // To preserve some space at both ends of the histogram
+
+  let cumDensity0 = 0, cumDensity1 = 0;
+
+  //      Left normalized index  Left value  Right normalized index, Right value
+  let threshEntry = [[undefined, undefined], [undefined, undefined]];
+  const x = 0, y = 0, w = HISTOGRAM_W, h = HISTOGRAM_H;
+  let hist = GetHistoryHistogram()[key];
+  if (hist == undefined) return;
+
+  let buckets = hist[2];
+  let dw = w * 1.0 / buckets.length;
+  let maxCount = 0, totalCount = 0;
+  for (let i = 0; i < buckets.length; i++) {
+    if (maxCount < buckets[i]) {
+      maxCount = buckets[i];
+    }
+    totalCount += buckets[i];
+  }
+  ctx.fillStyle = '#FFF';
+  ctx.fillRect(x, y, w, h);
+
+  ctx.strokeStyle = '#AAA';
+  ctx.fillStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + PAD, y + PAD, w - 2 * PAD, h - 2 * PAD);
+  for (let i = 0; i < buckets.length; i++) {
+    const bucketsLen = buckets.length;
+    if (buckets[i] > 0) {
+      let dx0 = x + PAD2 + (w - 2 * PAD2) * 1.0 * i / buckets.length,
+          dx1 = x + PAD2 + (w - 2 * PAD2) * 1.0 * (i + 1) / buckets.length,
+          dy0 = y + h - h * 1.0 * buckets[i] / maxCount, dy1 = y + h;
+      let delta_density = buckets[i] / totalCount;
+      cumDensity0 = cumDensity1;
+      cumDensity1 += delta_density;
+
+      // Write thresholds
+      if (cumDensity0 < HISTOGRAM_LEFT_TAIL_WIDTH &&
+          cumDensity1 >= HISTOGRAM_LEFT_TAIL_WIDTH) {
+        threshEntry[0][0] = i / buckets.length;
+        threshEntry[0][1] = hist[0] + (hist[1] - hist[0]) / bucketsLen * i;
+      }
+      if (cumDensity0 < 1 - HISTOGRAM_RIGHT_TAIL_WIDTH &&
+          cumDensity1 >= 1 - HISTOGRAM_RIGHT_TAIL_WIDTH) {
+        threshEntry[1][0] = (i - 1) / buckets.length;
+        threshEntry[1][1] =
+            hist[0] + (hist[1] - hist[0]) / bucketsLen * (i - 1);
+      }
+
+      ctx.fillRect(dx0, dy0, dx1 - dx0, dy1 - dy0);
+    }
+  }
+
+  // Mark the threshold regions
+  ctx.fillStyle = 'rgba(0,255,0,0.1)';
+  let dx = x + PAD2;
+  dw = (w - 2 * PAD2) * 1.0 * threshEntry[0][0];
+  ctx.fillRect(dx, y, dw, h);
+
+  ctx.fillStyle = 'rgba(255,0,0,0.1)';
+  ctx.beginPath();
+  dx = x + PAD2 + (w - 2 * PAD2) * 1.0 * threshEntry[1][0];
+  dw = (w - 2 * PAD2) * 1.0 * (1 - threshEntry[1][0]);
+  ctx.fillRect(dx, y, dw, h);
+
+  IsCanvasDirty = true;
+  return [ctx.getImageData(x, y, w, h), threshEntry];
+}
+
+function RenderHistogram(ctx, key, xMid, yMid) {
+  if (GetHistoryHistogram()[key] == undefined) {
+    return;
+  }
+  if (IpmiVizHistogramImageData[key] == undefined) {
+    return;
+  }
+  let hist = GetHistoryHistogram()[key];
+  ctx.putImageData(
+      IpmiVizHistogramImageData[key], xMid - HISTOGRAM_W / 2,
+      yMid - HISTOGRAM_H / 2);
+
+  let ub = '';  // Upper bound label
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#000';
+  if (hist[1] > 1000) {
+    ub = (hist[1] / 1000.0).toFixed(1) + 'ms';
+  } else {
+    ub = hist[1].toFixed(1) + 'us';
+  }
+  ctx.fillText(ub, xMid + HISTOGRAM_W / 2, yMid);
+
+  let lb = '';  // Lower bound label
+  if (hist[0] > 1000) {
+    lb = (hist[0] / 1000.0).toFixed(1) + 'ms';
+  } else {
+    lb = hist[0].toFixed(1) + 'us';
+  }
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(lb, xMid - HISTOGRAM_W / 2, yMid);
+}
+
 // A TimelineView contains data that has already gone through
 // the Layout step and is ready for showing
 class TimelineView {
@@ -258,12 +368,6 @@ class TimelineView {
     this.IsCanvasDirty = true;
   }
 
-  BeginSetBoundaryAnimation(lt, rt) {
-    this.IsAnimating = true;
-    this.LowerBoundTimeTarget = lt;
-    this.UpperBoundTimeTarget = rt;
-  }
-
   // Assume event.button is zero (left mouse button)
   OnMouseDown(iter = 1) {
     // If hovering over an overflowing triangle, warp to the nearest overflowed
@@ -488,10 +592,10 @@ class TimelineView {
 
       // Time Axis Breaks
       const breakWidths = [
-        86400, 10800, 3600,   1800, 1200, 600, 300, 120, 
-        60,     30,     10,      5,       2,
-        1,     0.5,   0.2,    0.1,    0.05,   0.02,    0.01,    0.005,
-        0.002, 0.001, 0.0005, 0.0002, 0.0001, 0.00005, 0.00002, 0.00001
+        86400,  10800,  3600,    1800,    1200,   600,   300,   120,
+        60,     30,     10,      5,       2,      1,     0.5,   0.2,
+        0.1,    0.05,   0.02,    0.01,    0.005,  0.002, 0.001, 0.0005,
+        0.0002, 0.0001, 0.00005, 0.00002, 0.00001
       ];
       const BreakDrawLimit = 1000;  // Only draw up to this many grid lines
 
@@ -664,13 +768,15 @@ class TimelineView {
 
             ctx.lineWidth = 0.5;
 
-            
+
             // If this request is taking too long/is quick enough, use red/green
             let entry = HistogramThresholds[this.Titles[j]];
-            
+
             let isError = false;
-            if (intervals_j[i][3] == "error") { isError = true; }
-            
+            if (intervals_j[i][3] == 'error') {
+              isError = true;
+            }
+
             if (entry != undefined) {
               if (entry[0][1] != undefined && durationUsec < entry[0][1]) {
                 ctx.strokeStyle = '#0F0';
@@ -686,38 +792,39 @@ class TimelineView {
 
             const duration = this.Intervals[j][i][1] - this.Intervals[j][i][0];
             if (!isNaN(duration)) {
-                if (isError) {
-                  ctx.fillStyle = "rgba(192, 128, 128, 0.8)";
-                  ctx.fillRect(dx0, dy0, dw, dy1-dy0);
-                  ctx.strokeStyle = "rgba(192, 128, 128, 1)";
-                }
-                
-                ctx.strokeRect(dx0, dy0, dw, dy1 - dy0);
-                numVisibleRequests++;
-              } else {
-                // This entry has only a beginning and not an end
-                // perhaps the original method call did not return
-                if (isCurrentReqHovered) { ctx.fillStyle = "rgba(192, 192, 0, 0.8)"; }
-                else { ctx.fillStyle = "rgba(255, 128, 128, 0.8)"; }
-                ctx.beginPath();
-                ctx.arc(dx0, (dy0+dy1)/2, HISTOGRAM_H*0.17, 0, 2*Math.PI);
-                ctx.fill();
+              if (isError) {
+                ctx.fillStyle = 'rgba(192, 128, 128, 0.8)';
+                ctx.fillRect(dx0, dy0, dw, dy1 - dy0);
+                ctx.strokeStyle = 'rgba(192, 128, 128, 1)';
               }
 
-            
+              ctx.strokeRect(dx0, dy0, dw, dy1 - dy0);
+              numVisibleRequests++;
+            } else {
+              // This entry has only a beginning and not an end
+              // perhaps the original method call did not return
+              if (isCurrentReqHovered) {
+                ctx.fillStyle = 'rgba(192, 192, 0, 0.8)';
+              } else {
+                ctx.fillStyle = 'rgba(255, 128, 128, 0.8)';
+              }
+              ctx.beginPath();
+              ctx.arc(dx0, (dy0 + dy1) / 2, HISTOGRAM_H * 0.17, 0, 2 * Math.PI);
+              ctx.fill();
+            }
+
+
             // Affects whether this req will be reflected in the aggregate info
             //     section
             if ((isAggregateSelection == false) ||
                 (isAggregateSelection == true && isHighlighted == true)) {
-            
-            
               if (!isNaN(duration)) {
                 numVisibleRequestsCurrLine++;
                 totalSecsCurrLine += duration;
               } else {
                 numFailedRequestsCurrLine++;
               }
-              
+
               // If a histogram exists for Titles[j], process the highlighted
               //     histogram buckets
               if (GetHistoryHistogram()[this.Titles[j]] != undefined) {
@@ -802,7 +909,7 @@ class TimelineView {
       // Draw highlighted sections for the histograms
       if (this.IsTimeDistributionEnabled) {
         y = YBEGIN;
-        for (let j = 0; j < this.Intervals.length; j++) {
+        for (let j = this.TitleStartIdx; j < this.Intervals.length; j++) {
           if (this.IpmiVizHistHighlighted[this.Titles[j]] != undefined) {
             let entry = HistogramThresholds[this.Titles[j]];
             const theSet =
@@ -844,10 +951,12 @@ class TimelineView {
       let totalOccs = 0, totalSecs = 0;
       if (this.IsHighlighted()) {
         ctx.fillStyle = '#00F';
-        ctx.fillText('#OK + Failed/time in selection', 3, TEXT_Y0);
+        ctx.fillText('# / time', 3, TEXT_Y0);
+        ctx.fillText('in selection', 3, TEXT_Y0 + LINE_SPACING - 2);
       } else {
         ctx.fillStyle = '#000';
-        ctx.fillText('#OK + Failed/time in viewport', 3, TEXT_Y0);
+        ctx.fillText('# / time', 3, TEXT_Y0);
+        ctx.fillText('in viewport', 3, TEXT_Y0 + LINE_SPACING - 2);
       }
 
       let timeDesc = '';
@@ -860,9 +969,16 @@ class TimelineView {
         } else {
           timeDesc = totalSeconds.toFixed(toFixedPrecision) + 's';
         }
-        ctx.fillText(
-            '' + numVisibleRequestsPerLine[i] + '+' +
-            numFailedRequestsPerLine[i] + ' / ' + timeDesc, 3, y);
+
+        const n0 = numVisibleRequestsPerLine[i];
+        const n1 = numFailedRequestsPerLine[i];
+        let txt = '';
+        if (n1 > 0) {
+          txt = '' + n0 + '+' + n1 + ' / ' + timeDesc;
+        } else {
+          txt = '' + n0 + ' / ' + timeDesc;
+        }
+        ctx.fillText(txt, 3, y);
         totalOccs += numVisibleRequestsPerLine[i];
         totalSecs += totalSeconds;
       }

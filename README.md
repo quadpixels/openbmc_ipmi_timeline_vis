@@ -8,11 +8,7 @@ The following commands are all run from this folder (where `index.html` is locat
 
 To build and run, a user would first need to install node.js and npm (Node.js package manager), and then checkout `dbus-pcap` to this folder. To install node.js on a Ubuntu/Debian-based system:
 
-1. `curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -`
-
-2. `sudo apt install -y nodejs`
-
-3. `sudo apt install npm`
+1. Follow this guide [https://g3doc.corp.google.com/javascript/tools/nodejs/g3doc/installing-node.md?cl=head](https://g3doc.corp.google.com/javascript/tools/nodejs/g3doc/installing-node.md?cl=head) to install nodejs and npm on a workstation.
 
 If `npm` and `node.js` are installed correctly you would probably see:
 
@@ -23,9 +19,9 @@ $ npm --version
 6.14.4
 ```
 
-Then, obtain `dbus-pcap` from [https://raw.githubusercontent.com/openbmc/openbmc-tools/master/amboar/obmc-scripts/dbus-pcap/dbus-pcap](https://raw.githubusercontent.com/openbmc/openbmc-tools/master/amboar/obmc-scripts/dbus-pcap/dbus-pcap):
+Then, obtain `dbus-pcap` from [https://raw.githubusercontent.com/openbmc/openbmc-tools/master/dbus-pcap/dbus-pcap](https://raw.githubusercontent.com/openbmc/openbmc-tools/master/dbus-pcap/dbus-pcap):
 
-1. `wget https://raw.githubusercontent.com/openbmc/openbmc-tools/master/amboar/obmc-scripts/dbus-pcap/dbus-pcap`
+1. `wget https://raw.githubusercontent.com/openbmc/openbmc-tools/master/dbus-pcap/dbus-pcap`
 
 2. `chmod +x dbus-pcap`
 

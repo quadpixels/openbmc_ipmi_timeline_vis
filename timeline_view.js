@@ -755,8 +755,12 @@ class TimelineView {
 
             let isCurrentReqHovered = false;
             // Intersect with mouse using pixel coordinates
+
+            const X_TOLERANCE = 4;
+
             if (IsIntersectedPixelCoords(
-                    [dx0, dx0 + dw], [this.MouseState.x, this.MouseState.x]) &&
+                    [dx0 - X_TOLERANCE, dx0 + dw + X_TOLERANCE],
+                    [this.MouseState.x, this.MouseState.x]) &&
                 IsIntersectedPixelCoords(
                     [dy0, dy1], [this.MouseState.y, this.MouseState.y])) {
               ctx.fillStyle = 'rgba(255,255,0,0.5)';
@@ -1100,6 +1104,11 @@ class IPMITimelineView extends TimelineView {
     if (NetFnCmdToDescription[key] != undefined) {
       labels.push('Description   : ' + NetFnCmdToDescription[key]);
     }
+
+    if (theHoveredReq.offset != undefined) {
+      labels.push('Offset      : ' + theHoveredReq.offset);
+    }
+
     let req = theHoveredReq[4];
     labels.push('Request Data  : ' + req.length + ' bytes');
     if (req.length > 0) {

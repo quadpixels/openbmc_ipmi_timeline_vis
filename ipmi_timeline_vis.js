@@ -290,22 +290,121 @@ function Preprocess(data) {
   return preprocessed;
 }
 
+let SHOW_BLOB_DETAILS = true;
 function Group(data, groupBy) {
   let grouped = {};
-  const idxes = {'NetFN': 0, 'CMD': 1};
+
+  // If has netfn and cmd: use "NetFN, CMD" as key
+  // Otherwise, use "NetFN" as key
+  // This distinction is made if the user chooses to label operation on each
+  // blob individually
+
+  // Key:   blob name
+  // Value: the commands that operate on the particular blob
+  let sid2blobid = {}
+
   for (let n = 0; n < data.length; n++) {
-    let key = '';
-    for (let i = 0; i < groupBy.length; i++) {
-      if (i > 0) {
-        key += ', ';
+    const p = data[n];
+    const netfn = p[0], cmd = p[1], req = p[4], res = p[5];
+    if (netfn == 46 && cmd == 128) {
+      const oen = req[0] + req[1] * 256 + req[2] * 65536;
+      if (oen == 0xc2cf) {  // Blob operations
+        const blobcmd =
+            req[3];  // Refer to https://github.com/openbmc/phosphor-ipmi-blobs
+
+        let sid, blobid;
+
+        // layout of req
+        //  0  1  2   3  4  5   6  7  8  9  10 ...
+        // CF C2 00 CMD [CRC ] [ other stuff  ]
+
+        // layout of res
+        //  0  1  2   3  4   5   6  7  8  ...
+        // CF C2 00  [CRC ] [other stuff]
+
+        // Determining blob id and session ID
+        switch (blobcmd) {
+          case 3:
+          case 4:
+          case 5:
+          case 6:
+          case 9:
+          case 10: {
+            const sid = req[6] + req[7] * 256;
+            blobid = sid2blobid[sid];
+            if (blobid != undefined) {
+              p.key = blobid;
+            }
+            break;
+          }
+          case 7:
+          case 8: {
+            blobid = '';
+            for (let i = 6; i < req.length; i++) {
+              blobid += String.fromCharCode(req[i]);
+            }
+            break;
+          }
+        }
+
+        switch (blobcmd) {
+          case 2: {  // open
+            blobid = '';
+            for (let i = 8; i < req.length; i++) {
+              if (req[i] == 0)
+                break;
+              else
+                blobid += String.fromCharCode(req[i]);
+            }
+            p.key = blobid;
+            sid = res[5] + res[6] * 256;  // session_id
+            sid2blobid[sid] = blobid;
+            break;
+          }
+          case 3: {  // Read
+
+            break;
+          }
+          case 4: {  // Write
+            const offset =
+                req[8] + req[9] * 256 + req[10] * 65536 + req[11] * 16777216;
+            p.offset = offset;
+            break;
+          }
+          case 5: {  // Commit
+            break;
+          }
+          case 6: {  // Close
+            break;
+          }
+        }
       }
-      key += data[n][idxes[groupBy[i]]];
     }
+  }
+
+  const idxes = {'NetFN': 0, 'CMD': 1};
+
+  //
+  for (let n = 0; n < data.length; n++) {
+    const p = data[n];
+    let key = '';
+    if (p.key != undefined)
+      key = p.key;
+    else if (p[0] != '' && p[1] != '') {
+      for (let i = 0; i < groupBy.length; i++) {
+        if (i > 0) {
+          key += ', ';
+        }
+        key += p[idxes[groupBy[i]]];
+      }
+    }
+
     if (grouped[key] == undefined) {
       grouped[key] = [];
     }
-    grouped[key].push(data[n]);
+    grouped[key].push(p);
   }
+
   return grouped;
 }
 
@@ -318,9 +417,13 @@ function GenerateTimeLine(grouped) {
     sortedKeys = sortedKeys.sort(function(a, b) {
       a = a.split(',');
       b = b.split(',');
-      let aa = parseInt(a[0]) * 256 + parseInt(a[1]);
-      let bb = parseInt(b[0]) * 256 + parseInt(b[1]);
-      return aa < bb ? -1 : (aa > bb ? 1 : 0);
+      if (a.length == 2 && b.length == 2) {
+        let aa = parseInt(a[0]) * 256 + parseInt(a[1]);
+        let bb = parseInt(b[0]) * 256 + parseInt(b[1]);
+        return aa < bb ? -1 : (aa > bb ? 1 : 0);
+      } else {
+        return a < b ? -1 : (a > b ? 1 : 0);
+      }
     });
   }
 

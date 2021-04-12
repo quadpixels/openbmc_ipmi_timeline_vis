@@ -12,7 +12,8 @@ function OpenDBusPcapFile(file_name) {
   var dbus_pcap_out1,
       dbus_pcap_out2;  // Normal format and JSON format output from dbus-pcap
   ShowBlocker('Running dbus-pcap ...');
-  const dbus_pcap = spawn('python3', ['dbus-pcap', file_name, '--json', '--progress']);
+  const dbus_pcap =
+      spawn('python3', ['dbus-pcap', file_name, '--json', '--progress']);
   let stdout = '';
   let num_cr = '';
   const r = new RegExp('([0-9]+/[0-9]+) [0-9]+\.[0-9]+:.*');
@@ -121,7 +122,7 @@ function Preprocess_DBusPcap(data, timestamps) {
     const IDX_TIMESTAMP_END = 8;
     const IDX_MC_OUTCOME = 9;  // Outcome of method call
 
-    let serial, path, member, iface, destination, sender, signature="";
+    let serial, path, member, iface, destination, sender, signature = '';
     // Same as the format of the Dummy data set
 
     switch (ty) {
@@ -198,16 +199,14 @@ function Preprocess_DBusPcap(data, timestamps) {
         if (reply_serial in in_flight_ipmi) {
           let x = in_flight_ipmi[reply_serial];
           delete in_flight_ipmi[reply_serial];
-          const netfn = payload[0], cmd = payload[2];
-          if (payload[3] != undefined) {
-            x.response = payload[3];
+          if (payload[0] != undefined && payload[0][4] != undefined) {
+            x.response = payload[0][4];
           }
           x.end_usec = MyFloatMillisToBigIntUsec(timestamp);
           g_ipmi_parsed_entries.push(x);
         }
         break;
       }
-
       case 3: {  // error reply
         let reply_serial = fixed_header[1][0][1];
         if (reply_serial in in_flight) {

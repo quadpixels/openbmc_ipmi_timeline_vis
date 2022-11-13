@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#ifdef EMSCRIPTEN_VERSION
+#ifdef DBUS_PCAP_USING_EMSCRIPTEN
 #include <emscripten.h>
 #endif
 
@@ -34,7 +34,7 @@ int g_num_packets = 0;
 
 void PrintByteArray(const std::vector<uint8_t>&, const int);
 
-#ifdef EMSCRIPTEN_VERSION
+#ifdef DBUS_PCAP_USING_EMSCRIPTEN
 
 extern "C" {
 

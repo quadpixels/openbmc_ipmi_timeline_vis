@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdint>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <variant>
@@ -21,8 +22,14 @@ constexpr const char* MessageEndianStr[] = {
 
 struct RawMessage {
   MessageEndian endian;
-  std::vector<uint8_t> header;
-  std::vector<uint8_t> data;
+  std::vector<uint8_t> data;  // All data, including header
+  std::vector<uint8_t> GetHeader() const { // The first 12 bytes of data
+    std::vector<uint8_t> ret;
+    if (data.size() >= 12) {
+      for (int i=0; i<12; i++) ret.push_back(data[i]);
+    }
+    return ret;
+  }
 
   RawMessage(const uint8_t* buf, int len);
   void Print();
@@ -46,6 +53,19 @@ enum class MessageFlags {
   ALLOW_INTERACTIVE_AUTHORIZATION = 0x04
 };
 
+enum class MessageHeaderType {
+  INVALID = 0,
+  PATH = 1,
+  INTERFACE = 2,
+  MEMBER = 3,
+  ERROR_NAME = 4,
+  REPLY_SERIAL = 5,
+  DESTINATION = 6,
+  SENDER = 7,
+  SIGNATURE = 8,
+  UNIX_FDS = 9,
+};
+
 struct FixedHeader {
   MessageEndian endian;
   MessageType type;
@@ -65,6 +85,8 @@ struct object_path {
 using DBusVariant = std::variant<bool, uint8_t, uint16_t, int16_t,
   uint32_t, int32_t, uint64_t, int64_t, double, std::string,
   object_path>;
+
+using DBusMessageFields = std::map<MessageHeaderType, std::variant<object_path, std::string, uint32_t>>;
 
 struct DBusContainer {
   std::vector<std::variant<DBusVariant, DBusContainer>> values;
@@ -200,5 +222,7 @@ DBusVariant ParseFixed(MessageEndian endian, AlignedStream* stream, const TypeCo
 DBusType ParseType(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc);
 TypeContainer ParseSignature(const std::string& sig);
 void ProcessByteArray(const std::vector<uint8_t>& buf);
+DBusType ParseContainer(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig);
+MessageHeaderType ToMessageHeaderType(int x);
 
 #endif

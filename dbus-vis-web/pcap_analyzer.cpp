@@ -102,14 +102,57 @@ bool IsContainerType(DBusDataType type) {
   }
 }
 
+MessageHeaderType ToMessageHeaderType(int x) {
+  switch (x) {
+    case 1: return MessageHeaderType::PATH;
+    case 2: return MessageHeaderType::INTERFACE;
+    case 3: return MessageHeaderType::MEMBER;
+    case 4: return MessageHeaderType::ERROR_NAME;
+    case 5: return MessageHeaderType::REPLY_SERIAL;
+    case 6: return MessageHeaderType::DESTINATION;
+    case 7: return MessageHeaderType::SENDER;
+    case 8: return MessageHeaderType::SIGNATURE;
+    case 9: return MessageHeaderType::UNIX_FDS;
+    default: return MessageHeaderType::INVALID;
+  }
+}
+
+std::string MessageHeaderTypeName(MessageHeaderType x) {
+	switch (x) {
+		case MessageHeaderType::INVALID: return "INVALID";
+		case MessageHeaderType::PATH: return "PATH";
+		case MessageHeaderType::INTERFACE: return "INTERFACE";
+		case MessageHeaderType::MEMBER: return "MEMBER";
+		case MessageHeaderType::ERROR_NAME: return "ERROR_NAME";
+		case MessageHeaderType::REPLY_SERIAL: return "REPLY_SERIAL";
+		case MessageHeaderType::DESTINATION: return "DESTINATION";
+		case MessageHeaderType::SENDER: return "SENDER";
+		case MessageHeaderType::SIGNATURE: return "SIGNATURE";
+		case MessageHeaderType::UNIX_FDS: return "UNIX_FDS";
+		default: return "UNKNOWN";
+	}
+}
+
+template<class T>
+std::string VariantToString(T x) {
+	if (std::holds_alternative<std::string>(x)) {
+		return std::get<std::string>(x);
+	} else if (std::holds_alternative<object_path>(x)) {
+		return std::get<object_path>(x).str;
+	} else if (std::holds_alternative<uint32_t>(x)) {
+		return std::to_string(std::get<uint32_t>(x));
+	} else {
+		assert(0);
+	}
+}
+
 // Library funcs
 RawMessage::RawMessage(const uint8_t* buf, int len) {
 	if (len < 12) {
 		assert(false && "Must be at least 12 bytes long");
 	}
 	endian = MessageEndianLookup(buf[0]);
-	for (int i=0; i<12; i++) { header.push_back(buf[i]); }
-	for (int i=12; i<len; i++) { data.push_back(buf[i]); }
+	for (int i=0; i<len; i++) { data.push_back(buf[i]); }
 }
 
 void RawMessage::Print() {
@@ -135,16 +178,17 @@ uint32_t BytesToUint32BE(const uint8_t* data) {
 // Header format: yyyyuua(yv)
 // The "yyyyuu" part is Fixed.
 FixedHeader::FixedHeader(const RawMessage& raw) {
-	endian  = MessageEndianLookup(raw.header[0]);
-	type    = MessageType(raw.header[1]);
-	flags   = raw.header[2];
-	version = raw.header[3];
+	std::vector<uint8_t> header = raw.GetHeader();
+	endian  = MessageEndianLookup(header[0]);
+	type    = MessageType(header[1]);
+	flags   = header[2];
+	version = header[3];
 	if (raw.endian == MessageEndian::LITTLE) {
-		length = BytesToUint32LE(raw.header.data()+4);
-		cookie = BytesToUint32LE(raw.header.data()+8);
+		length = BytesToUint32LE(header.data()+4);
+		cookie = BytesToUint32LE(header.data()+8);
 	} else {
-		length = BytesToUint32BE(raw.header.data()+4);
-		cookie = BytesToUint32BE(raw.header.data()+8);
+		length = BytesToUint32BE(header.data()+4);
+		cookie = BytesToUint32BE(header.data()+8);
 	}
 }
 
@@ -202,12 +246,59 @@ TypeContainer ParseSignature(const std::string& sig) {
 	return do_ParseSignature(sig, idx);
 }
 
+DBusMessageFields ParseFields(MessageEndian endian, AlignedStream* stream) {
+	TypeContainer sig = ParseSignature("a(yv)");
+	DBusContainer fields = std::get<DBusContainer>(ParseContainer(endian, stream, sig));
+	stream->Align(TypeContainer(DBusDataType::STRUCT));
+
+	DBusMessageFields ret;
+
+	// fields is a(yv), v is (yv)
+	for (const std::variant<DBusVariant, DBusContainer>& v : fields.values) {
+		const DBusContainer& c = std::get<DBusContainer>(v);
+		DBusVariant v0 = std::get<DBusVariant>(c.values[0]);
+		DBusVariant v1 = std::get<DBusVariant>(c.values[1]);
+		uint8_t header_type_id = std::get<uint8_t>(v0);
+		MessageHeaderType header_type = ToMessageHeaderType(header_type_id);
+		switch (header_type) {
+			case MessageHeaderType::PATH:
+				ret[header_type] = std::get<object_path>(v1); break;
+			case MessageHeaderType::INTERFACE:
+			case MessageHeaderType::MEMBER:
+			case MessageHeaderType::ERROR_NAME:
+			case MessageHeaderType::DESTINATION:
+			case MessageHeaderType::SENDER:
+			case MessageHeaderType::SIGNATURE:
+				ret[header_type] = std::get<std::string>(v1); break;
+			case MessageHeaderType::REPLY_SERIAL:
+			case MessageHeaderType::UNIX_FDS:
+				ret[header_type] = std::get<uint32_t>(v1); break;
+			default:
+				assert(0 && "Unexpected type in message header");
+		}
+	}
+	return ret;
+}
+
 bool ParseHeader(const unsigned char* data, int len) {
+	// Fixed header: 12 bytes
 	RawMessage rawmsg(data, len);
 	//rawmsg.Print();
-	PrintByteArray(rawmsg.header, 16);
+	//PrintByteArray(rawmsg.GetHeader(), 16);
 	FixedHeader fixed(rawmsg);
 	fixed.Print();
+
+	// Variable header: Starting from [12]
+	AlignedStream s;
+	std::vector<uint8_t> buf;
+	s.buf = &rawmsg.data;
+	s.offset = 12;
+	DBusMessageFields fields = ParseFields(fixed.endian, &s);
+
+	for (const auto& f : fields) {
+		printf("%s: %s\n", MessageHeaderTypeName(f.first).c_str(), 
+			VariantToString(f.second).c_str());
+	}
 
 	return true;
 }
@@ -282,8 +373,7 @@ DBusVariant ParseString(MessageEndian endian, AlignedStream* stream, const TypeC
 	if (size == 0) { return ""; }
 	std::string ret;
 	for (int i=0; i<size; i++) { ret.push_back(stream->TakeOneByte()); }
-	printf("String of size %d: %s\n", size, ret.c_str());
-	stream->TakeOneByte(); // Take one extra byte.
+	stream->TakeOneByte(); // Take one extra byte if the string is non-empty.
 
 	if (sig.type == DBusDataType::OBJECT_PATH) {
 		object_path op;

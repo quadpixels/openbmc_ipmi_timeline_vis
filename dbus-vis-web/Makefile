@@ -1,6 +1,10 @@
 CXX=g++
-pcap_analyzer: pcap_analyzer.cpp pcap_analyzer.hpp
-	$(CXX) pcap_analyzer.cpp -o $@ $(CFLAGS) -lpcap -std=c++17 -g
+
+pcap_analyzer: main.cpp pcap_analyzer.cpp pcap_analyzer.hpp
+	$(CXX) main.cpp pcap_analyzer.cpp -o $@ $(CFLAGS) -lpcap -std=c++17 -g
+
+pcap_analyzer_test: pcap_analyzer_test.cpp pcap_analyzer.cpp pcap_analyzer.hpp
+	$(CXX) pcap_analyzer_test.cpp pcap_analyzer.cpp -lpcap -lgtest -lpthread -std=c++17 -o$@
 
 pcap_analyzer.js: pcap_analyzer.cpp
 	@echo "Will need to first activate the Emscripten SDK."

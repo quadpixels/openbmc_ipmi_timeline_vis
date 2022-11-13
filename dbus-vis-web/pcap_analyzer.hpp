@@ -1,6 +1,7 @@
 #ifndef _PCAP_ANALYZER_HPP
 #define _PCAP_ANALYZER_HPP
 
+#include <cassert>
 #include <cstdint>
 #include <iostream>
 #include <sstream>
@@ -65,6 +66,12 @@ using DBusVariant = std::variant<bool, uint8_t, uint16_t, int16_t,
   uint32_t, int32_t, uint64_t, int64_t, double, std::string,
   object_path>;
 
+struct DBusContainer {
+  std::vector<std::variant<DBusVariant, DBusContainer>> values;
+};
+
+using DBusType = std::variant<DBusVariant, DBusContainer>;
+
 enum class DBusDataType {
   INVALID = 0x0,
   BYTE = 'y',
@@ -86,49 +93,10 @@ enum class DBusDataType {
   UNIX_FD = 'h',
 };
 
-bool IsFixedType(DBusDataType type) {
-  switch (type) {
-    case DBusDataType::BYTE:
-    case DBusDataType::BOOLEAN:
-    case DBusDataType::INT16:
-    case DBusDataType::UINT16:
-    case DBusDataType::INT32:
-    case DBusDataType::UINT32:
-    case DBusDataType::INT64:
-    case DBusDataType::UINT64:
-    case DBusDataType::DOUBLE:
-    case DBusDataType::UNIX_FD:
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool IsStringType(DBusDataType type) {
-  switch (type) {
-    case DBusDataType::STRING:
-    case DBusDataType::OBJECT_PATH:
-    case DBusDataType::SIGNATURE:
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool IsContainerType(DBusDataType type) {
-  switch (type) {
-    case DBusDataType::ARRAY:
-    case DBusDataType::STRUCT:
-    case DBusDataType::VARIANT:
-    case DBusDataType::DICT_ENTRY:
-      return true;
-    default:
-      return false;
-  }
-}
-
 struct TypeContainer {
   DBusDataType type;
+  DBusVariant value; // for fixed values
+
   std::vector<TypeContainer> members;
 
   TypeContainer() : type(DBusDataType::INVALID) {}
@@ -176,6 +144,8 @@ struct HeaderFields {
 struct DBusMessage {
   MessageType type;
   std::string sender, destination;
+  std::string body_signature;
+  std::vector<TypeContainer> body;
 };
 
 struct AlignedStream {
@@ -226,6 +196,9 @@ struct AlignedStream {
 };
 
 // Parsing
-void ParseType(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc);
+DBusVariant ParseFixed(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc);
+DBusType ParseType(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc);
+TypeContainer ParseSignature(const std::string& sig);
+void ProcessByteArray(const std::vector<uint8_t>& buf);
 
 #endif

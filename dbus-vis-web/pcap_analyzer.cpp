@@ -61,6 +61,47 @@ MessageEndian MessageEndianLookup(uint8_t ch) {
 	}
 }
 
+bool IsFixedType(DBusDataType type) {
+  switch (type) {
+    case DBusDataType::BYTE:
+    case DBusDataType::BOOLEAN:
+    case DBusDataType::INT16:
+    case DBusDataType::UINT16:
+    case DBusDataType::INT32:
+    case DBusDataType::UINT32:
+    case DBusDataType::INT64:
+    case DBusDataType::UINT64:
+    case DBusDataType::DOUBLE:
+    case DBusDataType::UNIX_FD:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool IsStringType(DBusDataType type) {
+  switch (type) {
+    case DBusDataType::STRING:
+    case DBusDataType::OBJECT_PATH:
+    case DBusDataType::SIGNATURE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool IsContainerType(DBusDataType type) {
+  switch (type) {
+    case DBusDataType::ARRAY:
+    case DBusDataType::STRUCT:
+    case DBusDataType::VARIANT:
+    case DBusDataType::DICT_ENTRY:
+      return true;
+    default:
+      return false;
+  }
+}
+
 // Library funcs
 RawMessage::RawMessage(const uint8_t* buf, int len) {
 	if (len < 12) {
@@ -196,27 +237,31 @@ DBusVariant ParseFixed(MessageEndian endian, AlignedStream* stream, const TypeCo
 	return ret;
 }
 
-void ParseArray(MessageEndian endian, AlignedStream* stream, const std::vector<TypeContainer>& members) {
+DBusContainer ParseArray(MessageEndian endian, AlignedStream* stream, const std::vector<TypeContainer>& members) {
+	DBusContainer ret;
 	uint32_t len = std::get<uint32_t>(ParseFixed(endian, stream,
 		TypeContainer(DBusDataType::UINT32)));
 	stream->Align(TypeContainer(DBusDataType::ARRAY));
 	int offset = stream->offset;
 	while (stream->offset < offset + len) {
 		for (const TypeContainer& tc : members) {
-			ParseType(endian, stream, tc);
+			ret.values.push_back(ParseType(endian, stream, tc));
 		}
 	}
+	return ret;
 }
 
-void ParseStruct(MessageEndian endian, AlignedStream* stream, const std::vector<TypeContainer>& members) {
+DBusContainer ParseStruct(MessageEndian endian, AlignedStream* stream, const std::vector<TypeContainer>& members) {
+	DBusContainer ret;
 	// Align
 	stream->Align(TypeContainer(DBusDataType::STRUCT));
 	for (const TypeContainer& tc : members) {
-		ParseType(endian, stream, tc);
+		ret.values.push_back(ParseType(endian, stream, tc));
 	}
+	return ret;
 }
 
-std::string ParseString(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig) {
+DBusVariant ParseString(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig) {
 	int size = 0;
 	TypeContainer string_size_ty;
 	switch (sig.type) {
@@ -239,39 +284,52 @@ std::string ParseString(MessageEndian endian, AlignedStream* stream, const TypeC
 	for (int i=0; i<size; i++) { ret.push_back(stream->TakeOneByte()); }
 	printf("String of size %d: %s\n", size, ret.c_str());
 	stream->TakeOneByte(); // Take one extra byte.
+
+	if (sig.type == DBusDataType::OBJECT_PATH) {
+		object_path op;
+		op.str = ret;
+		return op;
+	}
 	return ret;
 }
 
-void ParseVariant(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig) {
-	std::string vs = ParseString(endian, stream, TypeContainer(DBusDataType::SIGNATURE));
-	TypeContainer tc = ParseSignature(vs);
-	ParseType(endian, stream, tc);
+DBusType ParseVariant(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig) {
+	DBusVariant vs = ParseString(endian, stream, TypeContainer(DBusDataType::SIGNATURE));
+	std::string s;
+	if (std::holds_alternative<std::string>(vs)) {
+		s = std::get<std::string>(vs);
+	} else {
+		s = std::get<object_path>(vs).str;
+	}
+	TypeContainer tc = ParseSignature(s);
+	return ParseType(endian, stream, tc);
 }
 
-void ParseContainer(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig) {
+DBusType ParseContainer(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig) {
 	switch (sig.type) {
 		case DBusDataType::ARRAY:
-			ParseArray(endian, stream, sig.members);
+			return ParseArray(endian, stream, sig.members);
 			break;
 		case DBusDataType::STRUCT:
-			ParseStruct(endian, stream, sig.members);
-			break;
 		case DBusDataType::DICT_ENTRY:
-			assert(0);
-		case DBusDataType::VARIANT:
-			ParseVariant(endian, stream, sig);
+			return ParseStruct(endian, stream, sig.members);
 			break;
+		case DBusDataType::VARIANT:
+			return ParseVariant(endian, stream, sig);
+			break;
+		default:
+			assert(0);
 		break;
 	}
 }
 
-void ParseType(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc) {
+DBusType ParseType(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc) {
 	if (IsFixedType(tc.type)) {
-		ParseFixed(endian, stream, tc);
+		return ParseFixed(endian, stream, tc);
 	} else if (IsContainerType(tc.type)) {
-		ParseContainer(endian, stream, tc);
+		return ParseContainer(endian, stream, tc);
 	} else if (IsStringType(tc.type)) {
-		ParseString(endian, stream, tc);
+		return ParseString(endian, stream, tc);
 	} else {
 		assert(0 && "unimplemented");
 	}
@@ -338,75 +396,4 @@ void ProcessByteArray(const std::vector<uint8_t>& buf) {
 	}
 	pcap_close(the_pcap);
 	printf("%d packets in file\n", g_num_packets);
-}
-
-void Tests() {
-	{
-		std::string utf8string = "哈"; // code point 21704, {0xe5, 0x93, 0x88} in UTF-8, {0xb9, 0xfe} in GBK
-		printf("%s (length=%d)\n", utf8string.c_str(), int(utf8string.size()));
-	}
-	{
-		std::vector<uint8_t> bytes = { 1, 2, 3, 4 };
-		AlignedStream stream;
-		stream.buf = &bytes;
-		TypeContainer tc;
-		tc.type = DBusDataType::UINT32;
-		printf("%u\n", std::get<uint32_t>(ParseFixed(MessageEndian::LITTLE,
-			&stream, tc)));
-	}
-
-	{
-		TypeContainer tc = ParseSignature("a(yv)");
-//		tc.Print();
-	}
-
-	{
-		std::vector<uint8_t> bytes = {
-			0x00, 0x00, 0x00, 0x00, 0x9d, 0x00, 0x00, 0x00,
-			0x01, 0x01, 0x6f, 0x00, 0x2c, 0x00, 0x00, 0x00, 0x2f, 0x78, 0x79, 0x7a, 0x2f, 0x6f, 0x70, 0x65,
-			0x6e, 0x62, 0x6d, 0x63, 0x5f, 0x70, 0x72, 0x6f, 0x6a, 0x65, 0x63, 0x74, 0x2f, 0x73, 0x65, 0x6e,
-			0x73, 0x6f, 0x72, 0x73, 0x2f, 0x75, 0x74, 0x69, 0x6c, 0x69, 0x7a, 0x61, 0x74, 0x69, 0x6f, 0x6e,
-			0x2f, 0x43, 0x50, 0x55, 0x00, 0x00, 0x00, 0x00, 0x02, 0x01, 0x73, 0x00, 0x1f, 0x00, 0x00, 0x00,
-			0x6f, 0x72, 0x67, 0x2e, 0x66, 0x72, 0x65, 0x65, 0x64, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x2e,
-			0x44, 0x42, 0x75, 0x73, 0x2e, 0x50, 0x72, 0x6f, 0x70, 0x65, 0x72, 0x74, 0x69, 0x65, 0x73, 0x00,
-			0x03, 0x01, 0x73, 0x00, 0x11, 0x00, 0x00, 0x00, 0x50, 0x72, 0x6f, 0x70, 0x65, 0x72, 0x74, 0x69,
-			0x65, 0x73, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x08, 0x01, 0x67, 0x00, 0x08, 0x73, 0x61, 0x7b, 0x73, 0x76, 0x7d, 0x61, 0x73, 0x00, 0x00, 0x00,
-			0x07, 0x01, 0x73, 0x00, 0x04, 0x00, 0x00, 0x00, 0x3a, 0x31, 0x2e, 0x37, 0x00, 0x00, 0x00, 0x00,
-		};
-		AlignedStream stream;
-		stream.buf = &bytes;
-		stream.offset = 4;
-		TypeContainer tc = ParseSignature("a(yv)");
-		ParseType(MessageEndian::LITTLE, &stream, tc);
-	}
-}
-
-int main(int argc, char** argv) {
-
-	if (getenv("TEST")) {
-		printf("Running tests\n");
-		Tests();
-		return 0;
-	}
-
-	if (argc >= 2 && std::string(argv[1]) == "help") {
-		printf("Usage 1: %s (Pipe in a PCAP file)\n", argv[0]);
-		printf("Usage 2: %s PCAP_FILE_NAME\n", argv[0]);
-		return 0;
-	}
-
-	std::vector<uint8_t> buf;
-	std::istream* is;
-
-	if (argc < 2) {
-		is = &std::cin;
-	} else {
-		is = new std::ifstream(argv[1]);
-	}
-	while (is->good()) { buf.push_back(is->get()); }
-
-	ProcessByteArray(buf);
-
-	return 0;
 }

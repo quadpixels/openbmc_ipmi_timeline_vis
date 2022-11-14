@@ -5,7 +5,7 @@ const https = require('https');
 
 // "dbus_pcap": Run dbus_pcap and parse
 // "transpiled": Use .JS transpiled from libpcap
-const g_pcap_load_method = "transpiled";
+let g_pcap_load_method = "transpiled";
 
 // Event handler for the original read routine
 ipcRenderer.on('filename', (event, x) => {
@@ -94,7 +94,7 @@ function DownloadDbusPcap() {
     file_path.on('finish', () => {
       file_path.close();
       alert("dbus-pcap download complete!");
-      CheckDbusPcapPresence();
+      CheckDependencies();
     });
   });
 }
@@ -160,9 +160,13 @@ function CheckDependencies() {
     g_dbus_pcap_status_content.textContent = msg;
   }
 
+  let btn_use_pcap = document.getElementById("btn_use_dbuspcap");
   if (dbus_pcap_ok && scapy_ok) {
-    g_welcome_screen_content.style.display = 'block';
+    btn_use_pcap.disabled = false;
+  } else {
+    btn_use_pcap.disabled = true;
   }
+  g_welcome_screen_content.style.display = 'block';
 }
 
 function Init() {
@@ -234,5 +238,17 @@ function UpdateFileNamesString() {
 
 var g_cb_debug_info = document.getElementById('cb_debuginfo');
 
+function UpdatePCAPLoadMethod() {
+  document.getElementById("pcap_load_method").textContent = g_pcap_load_method;
+}
+document.getElementById("btn_use_dbuspcap").addEventListener(
+  'click', () => {
+    g_pcap_load_method = "dbus_pcap"; UpdatePCAPLoadMethod();
+  });
+document.getElementById("btn_use_transpiled").addEventListener(
+  'click', () => {
+    g_pcap_load_method = "transpiled"; UpdatePCAPLoadMethod();
+  });
 
+UpdatePCAPLoadMethod();
 Init();

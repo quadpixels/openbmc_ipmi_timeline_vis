@@ -82,14 +82,20 @@
                     <li>Boost ASIO handler log file</li>
                 </ol>
                 One file from each type (2 files in total) can be viewed simultaneously.
+                <br/>
+                <hr/>
+                <span>PCAP load method: <span id="pcap_load_method"></span>
+                <button id="btn_use_dbuspcap">Use dbus_pcap</button>
+                <button id="btn_use_transpiled">Use transpiled libpcap</button>
+                </span>
             </div>
             <hr />
             <div id="dbus_pcap_status_content">
               dbus-pcap status goes here
             </div>
             <div id="dbus_pcap_error_content">
-              The <b>dbus-pcap</b> script is not found; dbus-vis needs <b>dbus-pcap</b> for parsing PCAP files.<br/><br/>
-              Click to down <b>dbus-pcap</b> from: <br/>
+              The <b>dbus-pcap</b> script is not found; Only the transpiled libpcap is available.<br/><br/>
+              To use <b>dbus-pcap</b>, click the button to download from: <br/>
                 https://raw.githubusercontent.com/openbmc/openbmc-tools/08ce0a5bad2b5c970af567c2e9888d444afe3946/dbus-pcap/dbus-pcap<br/><br/>
               <button id="btn_download_dbus_pcap">Download to dbus-vis folder</button>
             </div>

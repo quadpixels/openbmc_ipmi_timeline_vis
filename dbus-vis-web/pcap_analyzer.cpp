@@ -53,8 +53,8 @@ void func1(char* buf, int buf_size) {
 	ProcessByteArray(buf1);
 
 	EM_ASM_ARGS({
-		OnNewDBusMessage(UTF8ToString($0), UTF8ToString($1));
-	}, "sender", "destination");
+		OnFinishParsingDBusPcap();
+	});
 }
 
 }
@@ -288,7 +288,7 @@ DBusMessageFields ParseFields(MessageEndian endian, AlignedStream* stream) {
 	return ret;
 }
 
-bool ParseHeader(const unsigned char* data, int len) {
+std::pair<FixedHeader, DBusMessageFields> ParseHeader(const unsigned char* data, int len) {
 	// Fixed header: 12 bytes
 	RawMessage rawmsg(data, len);
 	//rawmsg.Print();
@@ -308,7 +308,7 @@ bool ParseHeader(const unsigned char* data, int len) {
 			VariantToString(f.second).c_str());
 	}
 
-	return true;
+	return std::make_pair(fixed, fields);
 }
 
 // Parse fixed-size DBus types (byte, boolean, [u]int16, [u]int32, [u]int64, double, fd)
@@ -435,10 +435,63 @@ DBusType ParseType(MessageEndian endian, AlignedStream* stream, const TypeContai
 
 // Process 1 packet
 void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, const unsigned char* packet) {
+	const struct timeval& ts = pkthdr->ts;
+	double sec = ts.tv_sec * 1.0 + ts.tv_usec / 1000000.0;
+	printf("Timestamp: %.6f\n", sec);
+
 	int caplen = pkthdr->caplen, len = pkthdr->len;
 
 	if (caplen >= 12) {
-		ParseHeader(packet, caplen);
+		auto [fixed, fields] = ParseHeader(packet, caplen);
+		#ifdef DBUS_PCAP_USING_EMSCRIPTEN
+		
+		std::string path, iface, member, destination, sender;
+		uint32_t reply_serial = 0xFFFFFFFF;
+		for (const auto& entry : fields) {
+			switch (entry.first) {
+				case MessageHeaderType::PATH: {
+					path = std::get<object_path>(entry.second).str;
+					break;
+				}
+				case MessageHeaderType::INTERFACE: {
+					iface = std::get<std::string>(entry.second);
+					break;
+				}
+				case MessageHeaderType::MEMBER: {
+					member = std::get<std::string>(entry.second);
+					break;
+				}
+				case MessageHeaderType::DESTINATION: {
+					destination = std::get<std::string>(entry.second);
+					break;
+				}
+				case MessageHeaderType::SENDER: {
+					sender = std::get<std::string>(entry.second);
+					break;
+				}
+				case MessageHeaderType::REPLY_SERIAL: {
+					reply_serial = std::get<uint32_t>(entry.second);
+					break;
+				}
+				default: break;
+			}
+		}
+
+		// timestamp, type, serial, reply_serial, sender, destination, path, iface, member
+		EM_ASM_ARGS({
+			OnNewDBusMessage($0,                // timestamp (number)
+							 $1,                // type (number)
+							 $2,                // serial (number)
+							 $3,                // reply_serial (number)
+							 UTF8ToString($4),  // sender (string)
+							 UTF8ToString($5),  // destination (string)
+							 UTF8ToString($6),  // path (string)
+							 UTF8ToString($7),  // iface (string)
+							 UTF8ToString($8)   // member (string)
+							 );
+		}, sec, int(fixed.type), fixed.cookie, reply_serial, 
+			sender.c_str(), destination.c_str(), path.c_str(), iface.c_str(), member.c_str());
+		#endif
 	}
 
 	g_num_packets ++;

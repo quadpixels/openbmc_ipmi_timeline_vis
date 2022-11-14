@@ -144,6 +144,7 @@ struct TypeContainer {
       case DBusDataType::STRUCT:
         o << ")";
         break;
+      default: break;
     }
   }
 

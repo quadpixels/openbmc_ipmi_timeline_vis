@@ -303,11 +303,6 @@ std::pair<FixedHeader, DBusMessageFields> ParseHeader(const unsigned char* data,
 	s.offset = 12;
 	DBusMessageFields fields = ParseFields(fixed.endian, &s);
 
-	for (const auto& f : fields) {
-		printf("%s: %s\n", MessageHeaderTypeName(f.first).c_str(), 
-			VariantToString(f.second).c_str());
-	}
-
 	return std::make_pair(fixed, fields);
 }
 
@@ -437,7 +432,8 @@ DBusType ParseType(MessageEndian endian, AlignedStream* stream, const TypeContai
 void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, const unsigned char* packet) {
 	const struct timeval& ts = pkthdr->ts;
 	double sec = ts.tv_sec * 1.0 + ts.tv_usec / 1000000.0;
-	printf("Timestamp: %.6f\n", sec);
+
+	//printf("Timestamp: %.6f\n", sec);
 
 	int caplen = pkthdr->caplen, len = pkthdr->len;
 

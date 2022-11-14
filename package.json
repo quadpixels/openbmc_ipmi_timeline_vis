@@ -15,10 +15,13 @@
     "IPMI"
   ],
   "devDependencies": {
-    "electron": "^18.3.7"
+    "electron": "^18.2.4"
   },
   "dependencies": {
     "electron-dialog": "^2.0.0",
-    "file-system": "^2.2.2"
+    "file-system": "^2.2.2",
+    "md5-file": "^5.0.0",
+    "tar-stream": "^2.1.2",
+    "targz": "^1.0.1"
   }
 }

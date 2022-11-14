@@ -14,7 +14,7 @@
 //    accordingly.
 
 const {dialog} = require('electron');
-const {fs} = require('file-system');
+//const {fs} = require('file-system');
 const {util} = require('util');
 const {exec} = require('child_process');
 

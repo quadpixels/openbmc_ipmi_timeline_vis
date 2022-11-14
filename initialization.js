@@ -3,6 +3,11 @@ const { spawnSync } = require('child_process');
 const md5File = require('md5-file');
 const https = require('https');
 
+// "dbus_pcap": Run dbus_pcap and parse
+// "transpiled": Use .JS transpiled from libpcap
+const g_pcap_load_method = "transpiled";
+
+// Event handler for the original read routine
 ipcRenderer.on('filename', (event, x) => {
   // Determine file type
   let is_asio_log = false;
@@ -31,8 +36,18 @@ ipcRenderer.on('filename', (event, x) => {
     return;
   }
 
-  OpenDBusPcapFile(x);
+  if (g_pcap_load_method == "dbus_pcap") {
+    OpenDBusPcapFile(x);
+  } else {
+    OpenDBusPcapFile2(x); // Use emscripten-generated parsing routine
+  }
+
   UpdateLayout();
+});
+
+// Event handler for the new read routine
+ipcRenderer.on('file', (e) => {
+
 });
 
 function OpenFileHandler() {

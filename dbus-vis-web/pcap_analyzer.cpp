@@ -294,7 +294,7 @@ std::pair<FixedHeader, DBusMessageFields> ParseHeader(const unsigned char* data,
 	//rawmsg.Print();
 	//PrintByteArray(rawmsg.GetHeader(), 16);
 	FixedHeader fixed(rawmsg);
-	fixed.Print();
+	//fixed.Print();
 
 	// Variable header: Starting from [12]
 	AlignedStream s;

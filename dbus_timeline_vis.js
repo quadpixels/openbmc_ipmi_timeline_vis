@@ -154,8 +154,15 @@ function OnGroupByConditionChanged_DBus() {
       v.GroupByStr += cb.value;
     }
   }
-  let preproc = Preprocess_DBusPcap(
-      Data_DBus, Timestamps_DBus);  // should be from dbus_pcap
+
+  let preproc;
+
+  if (g_pcap_load_method == "dbus_pcap") {
+    preproc = Preprocess_DBusPcap(
+       Data_DBus, Timestamps_DBus);  // should be from dbus_pcap
+  } else if (g_pcap_load_method == "transpiled") {
+    preproc = g_preproc;
+  }
   let grouped = Group_DBus(preproc, v.GroupBy);
   GenerateTimeLine_DBus(grouped);
   dbus_timeline_view.IsCanvasDirty = true;

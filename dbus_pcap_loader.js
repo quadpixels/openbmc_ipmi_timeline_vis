@@ -7,6 +7,7 @@ function MyFloatMillisToBigIntUsec(x) {
   return ret;
 }
 
+// (Old data loading routine utilizing dbus-pcap)
 // When the Open File dialog is completed, the name of the opened file will be passed
 // to this routine. Then the program will do the following:
 // 1. Launch "linecount.py" to get the total packet count in the PCAP file for
@@ -178,6 +179,93 @@ function OpenDBusPcapFile(file_name) {
   })
 }
 
+// New loading routine utilizing dbus-pcap ported to CXX and compiled to JS
+let g_preproc = [];
+let g_in_flight = {};
+let g_in_flight_ipmi = {};
+let g_timestamps = [];
+
+function OpenDBusPcapFile2(file_name) {
+  const data = fs.readFileSync(file_name);
+  let buf = new Uint8Array(data);
+  console.log(buf);
+
+  g_ipmi_parsed_entries = [];
+  Module.ccall("func1", "undefined", ["array", "number"], [buf, buf.length])
+}
+
+// Used in OnNewDBusMessage and Preprocess_DBusPcap
+const IDX_TIMESTAMP_END = 8;
+const IDX_MC_OUTCOME = 9;  // Outcome of method call
+
+// Called by CXX
+function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destination, path, iface, member) {
+  switch (type) {
+    case 4: { // Signal
+      destination = '<none>';
+      timestamp_end = timestamp * 1000; // sec to usec
+      g_timestamps.push(timestamp * 1000);
+      let entry = [
+        'sig', timestamp * 1000, serial, sender, destination, path, iface, member,
+        timestamp_end, [] // TODO: Add payload
+      ];
+      g_preproc.push(entry);
+      console.log(entry);
+      break;
+    }
+    case 1: { // Method call
+      let entry = [
+        'mc', timestamp * 1000, serial, sender, destination, path, iface, member,
+        timestamp_end, [], [], '' // TODO: fill in packet
+      ];
+      
+      // TODO: Add IPMI details
+      g_preproc.push(entry);
+      g_in_flight[serial] = entry;
+      break;
+    }
+    case 2: { // Method reply
+      if (reply_serial in g_in_flight) {
+        let x = g_in_flight[reply_serial];
+        delete g_in_flight[reply_serial];
+        x[IDX_TIMESTAMP_END] = timestamp * 1000;
+        x[IDX_MC_OUTCOME] = 'ok';
+      }
+      // TODO: Add IPMI handling
+      break;
+    }
+    case 3: { // Error reply
+      if (reply_serial in in_flight) {
+        let x = g_in_flight[reply_serial];
+        delete g_in_flight[reply_serial];
+        x[IDX_TIMESTAMP_END] = timestamp * 1000;
+        x[IDX_MC_OUTCOME] = 'error';
+      }
+      break;
+    }
+  }
+}
+
+function OnFinishParsingDBusPcap() {
+  const v = dbus_timeline_view;
+  Timestamps_DBus = g_timestamps;
+  let grouped = Group_DBus(g_preproc, v.GroupBy);
+  GenerateTimeLine_DBus(grouped);
+  dbus_timeline_view.IsCanvasDirty = true;
+  if (dbus_timeline_view.IsEmpty() == false ||
+      ipmi_timeline_view.IsEmpty() == false) {
+    dbus_timeline_view.CurrentFileName = file_name;
+    ipmi_timeline_view.CurrentFileName = file_name;
+    HideWelcomeScreen();
+    ShowDBusTimeline();
+    ShowIPMITimeline();
+    ShowNavigation();
+    UpdateFileNamesString();
+  }
+  OnGroupByConditionChanged_DBus(); // Need this for initial layout computation upon loading pcap file
+  g_btn_zoom_reset.click(); // Zoom to capture time range
+}
+
 // Input: data and timestamps obtained from 
 // Output: Two arrays
 //   The first is sensor PropertyChanged emissions only
@@ -209,8 +297,6 @@ function Preprocess_DBusPcap(data, timestamps) {
     const ty = fixed_header[0][1];
     let timestamp = timestamps[i];
     let timestamp_end = undefined;
-    const IDX_TIMESTAMP_END = 8;
-    const IDX_MC_OUTCOME = 9;  // Outcome of method call
 
     let serial, path, member, iface, destination, sender, signature = '';
     // Same as the format of the Dummy data set

@@ -184,14 +184,22 @@ let g_preproc = [];
 let g_in_flight = {};
 let g_in_flight_ipmi = {};
 let g_timestamps = [];
+let g_num_packets_total = 0, g_num_packets_parsed = 0;
+let g_last_update_millis = 0;
 
 function OpenDBusPcapFile2(file_name) {
   const data = fs.readFileSync(file_name);
   let buf = new Uint8Array(data);
   console.log(buf);
+  ShowBlocker('Loading PCAP file ...');
 
   g_ipmi_parsed_entries = [];
   Module.ccall("func1", "undefined", ["array", "number"], [buf, buf.length])
+}
+
+function OnDBusPCapInfo(num_packets) {
+  g_num_packets_total = num_packets;
+  g_num_packets_total = 0;
 }
 
 // Used in OnNewDBusMessage and Preprocess_DBusPcap
@@ -200,6 +208,14 @@ const IDX_MC_OUTCOME = 9;  // Outcome of method call
 
 // Called by CXX
 function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destination, path, iface, member) {
+
+  const millis = Date.now();
+  if (millis - g_last_update_millis > 100) { // Refresh at most 10 times per second
+    let pct = parseInt(g_num_packets_parsed * 100 / g_num_packets_total);
+    ShowBlocker('Parsing packet ' + g_num_packets_parsed + '/' + g_num_packets_total + ' (' + pct + '%)');
+    g_last_update_millis = millis;
+  }
+
   switch (type) {
     case 4: { // Signal
       destination = '<none>';
@@ -247,6 +263,7 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
 }
 
 function OnFinishParsingDBusPcap() {
+  HideBlocker();
   const v = dbus_timeline_view;
   Timestamps_DBus = g_timestamps;
   let grouped = Group_DBus(g_preproc, v.GroupBy);

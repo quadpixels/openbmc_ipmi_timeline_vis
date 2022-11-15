@@ -188,12 +188,13 @@ let g_num_packets_total = 0, g_num_packets_parsed = 0;
 let g_last_update_millis = 0;
 
 function OpenDBusPcapFile2(file_name) {
+  ShowBlocker('Sending PCAP file ...')
+  console.log("ShowBlocker");
+
   const data = fs.readFileSync(file_name);
   let buf = new Uint8Array(data);
   console.log(buf);
   Module.ccall("StartSendPCAPByteArray", "undefined", ["number"], buf.length);
-
-  ShowBlocker('Sending PCAP file ...')
 
   const CHUNK_SIZE = 65536;
   const num_chunks = parseInt((buf.length - 1) / CHUNK_SIZE) + 1;
@@ -201,11 +202,10 @@ function OpenDBusPcapFile2(file_name) {
     const offset = i*CHUNK_SIZE;
     const offset_end = Math.min(buf.length, (i+1) * CHUNK_SIZE);
     let chunk = buf.slice(offset, offset_end);
-    Module.ccall("SendPCAPByteArrayChunk", "undefined", ["array", "number"],
-      [chunk, chunk.length]);
-    console.log("Sending offset " + offset + ", " + offset_end + ", " + chunk.length);
     ShowBlocker('Sending PCAP file ... ' + parseInt(offset / 1024) + "K / " +
       parseInt(buf.length / 1024) + "K");
+    Module.ccall("SendPCAPByteArrayChunk", "undefined", ["array", "number"],
+      [chunk, chunk.length]);
   }
 
   ShowBlocker('Parsing PCAP file ...');
@@ -243,13 +243,12 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
         timestamp_end, [] // TODO: Add payload
       ];
       g_preproc.push(entry);
-      console.log(entry);
       break;
     }
     case 1: { // Method call
       let entry = [
         'mc', timestamp * 1000, serial, sender, destination, path, iface, member,
-        timestamp_end, [], [], '' // TODO: fill in packet
+        timestamp * 1000, [], [], '' // TODO: fill in packet
       ];
       
       // TODO: Add IPMI details
@@ -268,7 +267,7 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
       break;
     }
     case 3: { // Error reply
-      if (reply_serial in in_flight) {
+      if (reply_serial in g_in_flight) {
         let x = g_in_flight[reply_serial];
         delete g_in_flight[reply_serial];
         x[IDX_TIMESTAMP_END] = timestamp * 1000;

@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <exception>
 #include <iostream>
 #include <map>
 #include <sstream>
@@ -180,6 +181,9 @@ struct AlignedStream {
   }
 
   std::vector<uint8_t> Take(const TypeContainer& tc) {
+    if (Ended()) {
+      throw std::out_of_range("AlignedStream has ended");
+    }
     std::vector<uint8_t> ret;
     switch (tc.type) {
       case DBusDataType::BYTE:
@@ -215,6 +219,10 @@ struct AlignedStream {
     while ((offset % alignment) != 0) {
       offset ++;
     }
+  }
+
+  bool Ended() {
+    return (offset >= buf->size());
   }
 };
 

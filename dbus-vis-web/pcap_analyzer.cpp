@@ -340,7 +340,11 @@ DBusContainer ParseArray(MessageEndian endian, AlignedStream* stream, const std:
 	int offset = stream->offset;
 	while (stream->offset < offset + len) {
 		for (const TypeContainer& tc : members) {
-			ret.values.push_back(ParseType(endian, stream, tc));
+			try {
+				ret.values.push_back(ParseType(endian, stream, tc));
+			} catch (const std::exception& e) {  // Array is parsed on an "as much as possible" basis
+				break;
+			}
 		}
 	}
 	return ret;

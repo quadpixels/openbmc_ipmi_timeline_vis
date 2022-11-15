@@ -154,7 +154,20 @@ class TimelineView {
       x: 0,
       y: 0,
       hoveredLineIndex: -999,
-      hoveredSide: undefined
+      hoveredSide: undefined,  // 'left', 'right', 'scroll', 'timeline'
+      drag_begin_title_start_idx: undefined,
+      drag_begin_y: undefined,
+      IsDraggingScrollBar: function() {
+        return (this.drag_begin_y != undefined);
+      },
+      EndDragScrollBar: function() {
+        this.drag_begin_y = undefined;
+        this.drag_begin_title_start_idx = undefined;
+      }
+    };
+    this.ScrollBarState = {
+      y0: undefined,
+      y1: undefined,
     };
     this.HighlightedRegion = {t0: -999, t1: -999};
 
@@ -329,10 +342,15 @@ class TimelineView {
   }
 
   OnMouseMove() {
-    // Update highlighted area
-    if (ipmi_timeline_view.MouseState.pressed == true) {
-      ipmi_timeline_view.HighlightedRegion.t1 =
-          ipmi_timeline_view.MouseXToTimestamp(ipmi_timeline_view.MouseState.x);
+    // Drag gestures
+    // FIXME: I forgot why I'm using ipmi_timeline_view instead of "this"
+    if (this.MouseState.pressed == true) {
+      const h = this.MouseState.hoveredSide;
+      if (h == 'timeline') {
+        // Update highlighted area
+        this.HighlightedRegion.t1 =
+          this.MouseXToTimestamp(this.MouseState.x);
+      }
     }
 
     const PAD = 2;
@@ -346,7 +364,7 @@ class TimelineView {
     this.IsCanvasDirty = true;
     let lineIndex =
         Math.floor((this.MouseState.y - YBEGIN + TEXT_Y0) / LINE_SPACING);
-    this.MouseState.hoveredSide = undefined;
+
     this.MouseState.hoveredLineIndex = -999;
     if (lineIndex < this.Intervals.length) {
       this.MouseState.hoveredLineIndex = lineIndex;
@@ -361,11 +379,31 @@ class TimelineView {
         this.IsCanvasDirty = true;
       }
     }
+
+    if (this.MouseState.pressed == true) {
+      if (this.MouseState.hoveredSide == 'scrollbar') {
+        const diff_y = this.MouseState.y - this.MouseState.drag_begin_y;
+        const diff_title_idx = this.Titles.length * diff_y / this.Canvas.height;
+        let new_title_start_idx = this.MouseState.drag_begin_title_start_idx + parseInt(diff_title_idx);
+        if (new_title_start_idx < 0) { new_title_start_idx = 0; }
+        else if (new_title_start_idx >= this.Titles.length) {
+          new_title_start_idx = this.Titles.length - 1;
+        }
+        this.TitleStartIdx = new_title_start_idx;
+      }
+    }
   }
 
   OnMouseLeave() {
-    this.MouseState.hovered = false;
-    this.IsCanvasDirty = true;
+    // When dragging the scroll bar, allow mouse to temporarily leave the element since we only
+    // care about delta Y
+    if (this.MouseState.hoveredSide == 'scrollbar') {
+      
+    } else {
+      this.MouseState.hovered = false;
+      this.MouseState.hoveredSide = undefined;
+      this.IsCanvasDirty = true;
+    }
   }
 
   // Assume event.button is zero (left mouse button)
@@ -398,31 +436,45 @@ class TimelineView {
     let tx = this.MouseXToTimestamp(this.MouseState.x);
     let t0 = Math.min(this.HighlightedRegion.t0, this.HighlightedRegion.t1),
         t1 = Math.max(this.HighlightedRegion.t0, this.HighlightedRegion.t1);
-    if (tx >= t0 && tx <= t1) {
-      // If clicking inside highlighted area, zoom around the area
-      this.BeginSetBoundaryAnimation(t0, t1);
-      this.Unhighlight();
-      this.IsCanvasDirty = true;
+    if (this.MouseState.x > LEFT_MARGIN) {
+      if (tx >= t0 && tx <= t1) {
+        // If clicking inside highlighted area, zoom around the area
+        this.BeginSetBoundaryAnimation(t0, t1);
+        this.Unhighlight();
+        this.IsCanvasDirty = true;
 
-      this.linked_views.forEach(function(v) {
-        v.BeginSetBoundaryAnimation(t0, t1, 0);
-        v.Unhighlight();
-        v.IsCanvasDirty = false;
-      });
-    } else {  // Otherwise start a new dragging session
-      this.MouseState.pressed = true;
-      this.HighlightedRegion.t0 = this.MouseXToTimestamp(this.MouseState.x);
-      this.HighlightedRegion.t1 = this.HighlightedRegion.t0;
-      this.IsCanvasDirty = true;
+        this.linked_views.forEach(function(v) {
+          v.BeginSetBoundaryAnimation(t0, t1, 0);
+          v.Unhighlight();
+          v.IsCanvasDirty = false;
+        });
+      } else {  // If in the timeline area, start a new dragging action
+        this.MouseState.hoveredSide = 'timeline';
+        this.MouseState.pressed = true;
+        this.HighlightedRegion.t0 = this.MouseXToTimestamp(this.MouseState.x);
+        this.HighlightedRegion.t1 = this.HighlightedRegion.t0;
+        this.IsCanvasDirty = true;
+      }
+    } else if (this.MouseState.x < SCROLL_BAR_WIDTH) {  // Todo: draagging the scroll bar
+      const THRESH = 4;
+      if (this.MouseState.y >= this.ScrollBarState.y0 - THRESH &&
+          this.MouseState.y <= this.ScrollBarState.y1 + THRESH) {
+        this.MouseState.pressed = true;
+        this.MouseState.drag_begin_y = this.MouseState.y;
+        this.MouseState.drag_begin_title_start_idx = this.TitleStartIdx;
+        this.MouseState.hoveredSide = 'scrollbar';
+      }
     }
   }
 
   // Assume event.button == 0 (left mouse button)
   OnMouseUp() {
+    this.MouseState.EndDragScrollBar();
     this.MouseState.pressed = false;
     this.IsCanvasDirty = true;
     this.UnhighlightIfEmpty();
     this.IsHighlightDirty = true;
+    this.MouseState.hoveredSide = undefined;
   }
 
   UnhighlightIfEmpty() {
@@ -756,6 +808,8 @@ class TimelineView {
             let isCurrentReqHovered = false;
             // Intersect with mouse using pixel coordinates
 
+            // When the mouse position is within 4 pixels distance from an entry, consider
+            // the mouse to be over that entry and show the information popup
             const X_TOLERANCE = 4;
 
             if (IsIntersectedPixelCoords(
@@ -901,13 +955,40 @@ class TimelineView {
         if (y > height) break;
       }
 
-      // Draw a scroll bar on the left
-      if (!(title_start_idx == 0 && title_end_idx == this.Titles.length - 1)) {
-        let nbreaks = this.Titles.length;
-        let y0 = title_start_idx * height / nbreaks;
-        let y1 = (1 + title_end_idx) * height / nbreaks;
-        ctx.fillStyle = this.AccentColor;
-        ctx.fillRect(0, y0, 4, y1 - y0);
+      {
+        // Draw a scroll bar on the left
+        if (!(title_start_idx == 0 && title_end_idx == this.Titles.length - 1)) {
+          let nbreaks = this.Titles.length;
+
+          const y0 = title_start_idx * height / nbreaks;
+          const y1 = (1 + title_end_idx) * height / nbreaks;
+
+          let highlighted = false;
+          const THRESH = 8;
+          if (this.MouseState.IsDraggingScrollBar()) {
+            highlighted = true;
+          }
+          this.ScrollBarState.highlighted = highlighted;
+
+          // If not dragging, let title_start_idx drive y0 and y1, else let the
+          // user's input drive y0 and y1 and title_start_idx
+          if (!this.MouseState.IsDraggingScrollBar()) {
+            this.ScrollBarState.y0 = y0;
+            this.ScrollBarState.y1 = y1;
+          }
+
+          if (highlighted) {
+            ctx.fillStyle = "#FF3";
+          } else {
+            ctx.fillStyle = this.AccentColor;
+          }
+          ctx.fillRect(0, y0, SCROLL_BAR_WIDTH, y1 - y0);
+
+        } else {
+          this.ScrollBarState.y0 = undefined;
+          this.ScrollBarState.y1 = undefined;
+          this.ScrollBarState.highlighted = false;
+        }
       }
 
       // Draw highlighted sections for the histograms

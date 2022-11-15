@@ -94,8 +94,8 @@ function Init() {
   v2.linked_views = [v0, v1];
 
   // Set accent color
-  v0.AccentColor = '#0CC';
-  v1.AccentColor = '#080';
+  v0.AccentColor = 'rgba(0,224,224,0.5)';
+  v1.AccentColor = 'rgba(0,128,0,  0.5)';
   v2.AccentColor = '#E22';
 }
 

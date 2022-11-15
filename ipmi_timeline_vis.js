@@ -214,6 +214,7 @@ const HISTOGRAM_X = 270;
 // const HISTOGRAM_LEFT_TAIL_WIDTH = 0.05, HISTOGRAM_RIGHT_TAIL_WIDTH = 0.05;
 // temporarily disabled for now
 const HISTOGRAM_LEFT_TAIL_WIDTH = -1, HISTOGRAM_RIGHT_TAIL_WIDTH = -1;
+const SCROLL_BAR_WIDTH = 16;
 
 let IpmiVizHistogramImageData = {};  // Image data for rendered histogram
 
@@ -311,6 +312,10 @@ function Group(data, groupBy) {
       if (oen == 0xc2cf) {  // Blob operations
         const blobcmd =
             req[3];  // Refer to https://github.com/openbmc/phosphor-ipmi-blobs
+
+        // The IPMI blob commands are visible on DBus, another WIP command-line tool that
+        // utilizes this fact to show information about blobs can be found here:
+        // https://gerrit.openbmc-project.xyz/c/openbmc/openbmc-tools/+/41451
 
         let sid, blobid;
 

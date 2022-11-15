@@ -6,10 +6,6 @@
   "scripts": {
     "start": "electron ."
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/quadpixels/openbmc_ipmi_timeline_vis.git"
-  },
   "keywords": [
     "OpenBMC",
     "IPMI"
@@ -22,5 +18,6 @@
     "file-system": "^2.2.2",
     "tar-stream": "^2.1.2",
     "targz": "^1.0.1"
-  }
+  },
+  "test": "echo \"Error: no test specified\" && exit 1"
 }

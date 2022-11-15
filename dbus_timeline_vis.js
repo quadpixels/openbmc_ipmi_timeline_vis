@@ -118,7 +118,8 @@ Canvas_DBus.onmousemove =
   const v = dbus_timeline_view;
   v.MouseState.x = event.pageX - this.offsetLeft;
   v.MouseState.y = event.pageY - this.offsetTop;
-  if (v.MouseState.pressed == true) {  // Update highlighted area
+  if (v.MouseState.pressed == true &&
+    v.MouseState.hoveredSide == 'timeline') {  // Update highlighted area
     v.HighlightedRegion.t1 = v.MouseXToTimestamp(v.MouseState.x);
   }
   v.OnMouseMove();
@@ -127,7 +128,8 @@ Canvas_DBus.onmousemove =
   v.linked_views.forEach(function(u) {
     u.MouseState.x = event.pageX - Canvas_DBus.offsetLeft;
     u.MouseState.y = 1;                  // Do not highlight any entry
-    if (u.MouseState.pressed == true) {  // Update highlighted area
+    if (u.MouseState.pressed == true &&
+      v.MouseState.hoveredSide == 'timeline') {  // Update highlighted area
       u.HighlightedRegion.t1 = u.MouseXToTimestamp(u.MouseState.x);
     }
     u.OnMouseMove();
@@ -135,7 +137,7 @@ Canvas_DBus.onmousemove =
   });
 }
 
-    Canvas_DBus.onmousedown = function(event) {
+Canvas_DBus.onmousedown = function(event) {
   if (event.button == 0) {
     dbus_timeline_view.OnMouseDown();
   }

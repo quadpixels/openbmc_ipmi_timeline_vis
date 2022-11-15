@@ -132,7 +132,11 @@ function Preprocess_DBusPcap(data, timestamps) {
         iface = fixed_header[1][1][1];
         member = fixed_header[1][2][1];
         // signature = fixed_header[1][3][1];
-        sender = fixed_header[1][4][1];
+        // fixed_header[1] can have variable length.
+        // For example: signal from org.freedesktop.PolicyKit1.Authority can
+        // have only 4 elements, while most others are 5
+        const idx = fixed_header[1].length - 1;
+        sender = fixed_header[1][idx][1];
         destination = '<none>';
         timestamp_end = timestamp;
         let entry = [

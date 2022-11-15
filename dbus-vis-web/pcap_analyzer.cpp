@@ -38,20 +38,21 @@ void PrintByteArray(const std::vector<uint8_t>&, const int);
 
 extern "C" {
 
-// How to call from JavaScript side:
-// Module.ccall("func1", "undefined", ["array", "number"], [new Uint8Array([0xff, 0xfa, 0xfc]), 3])
-void func1(char* buf, int buf_size) {
-	printf("buf_size=%d\n", buf_size);
-	std::vector<uint8_t> b(buf_size);
-	memcpy(b.data(), buf, buf_size);
-	//PrintByteArray(b, 16);
+int g_pcap_buf_size = 0;
+std::vector<uint8_t> g_pcap_buf;
+void StartSendPCAPByteArray(int buf_size) {
+	g_pcap_buf_size = buf_size;
+}
 
-	std::vector<uint8_t> buf1;
-	for (int i=0; i<buf_size; i++) {
-		buf1.push_back(buf[i]);
+void SendPCAPByteArrayChunk(char* buf, int len) {
+	for (int i=0; i<len; i++) {
+		g_pcap_buf.push_back(buf[i]);
 	}
-	ProcessByteArray(buf1);
+}
 
+void EndSendPCAPByteArray() {
+	ProcessByteArray(g_pcap_buf);
+	g_pcap_buf.clear();
 	EM_ASM_ARGS({
 		OnFinishParsingDBusPcap();
 	});

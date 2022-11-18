@@ -191,6 +191,9 @@ function OpenDBusPcapFile2(file_name) {
   ShowBlocker('Sending PCAP file ...')
   console.log("ShowBlocker");
 
+  RANGE_RIGHT_INIT = 0;
+  RANGE_LEFT_INIT  = 1e20;
+
   const data = fs.readFileSync(file_name);
   let buf = new Uint8Array(data);
   console.log(buf);
@@ -232,6 +235,9 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
     ShowBlocker('Parsing packet ' + g_num_packets_parsed + '/' + g_num_packets_total + ' (' + pct + '%)');
     g_last_update_millis = millis;
   }
+
+  RANGE_RIGHT_INIT = Math.max(RANGE_RIGHT_INIT, timestamp);
+  RANGE_LEFT_INIT  = Math.min(RANGE_LEFT_INIT,  timestamp);
 
   switch (type) {
     case 4: { // Signal
@@ -280,6 +286,11 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
 
 function OnFinishParsingDBusPcap() {
   HideBlocker();
+
+  const offset = RANGE_LEFT_INIT;
+  RANGE_RIGHT_INIT -= offset;
+  RANGE_LEFT_INIT  -= offset;
+
   const v = dbus_timeline_view;
   Timestamps_DBus = g_timestamps;
   let grouped = Group_DBus(g_preproc, v.GroupBy);

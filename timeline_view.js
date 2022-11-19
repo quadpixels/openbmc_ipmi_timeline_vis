@@ -1,8 +1,59 @@
-const { TouchBarScrubber } = require("electron");
-
+// Global variables shared by all 3 views
 // Default range: 0 to 300s, shared between both views
 var RANGE_LEFT_INIT = 0;
 var RANGE_RIGHT_INIT = 300;
+const LEFT_MARGIN = 640
+const RIGHT_MARGIN = 1390;
+const LINE_HEIGHT = 15;
+const LINE_SPACING = 17;
+const YBEGIN = 22 + LINE_SPACING;
+const TOP_HORIZONTAL_SCROLLBAR_HEIGHT = YBEGIN - LINE_HEIGHT / 2; // ybegin is the center of the 1st line of the text so need to minus line_height/2
+const BOTTOM_HORIZONTAL_SCROLLBAR_HEIGHT = LINE_HEIGHT;
+const TEXT_Y0 = 3;
+const HISTOGRAM_W = 100, HISTOGRAM_H = LINE_SPACING;
+const HISTOGRAM_X = 270;
+const SCROLL_BAR_WIDTH = 16;
+
+
+// Data
+var HistoryHistogram = [];
+
+let Intervals = [];
+let Titles = [];
+let GroupBy = [];
+let GroupByStr = '';
+
+// (NetFn, Cmd) -> [ Bucket Indexes ]
+// Normalized (0~1) bucket index for the currently highlighted IPMI requests
+let IpmiVizHistHighlighted = {};
+let HistogramThresholds = {};
+
+// Moved from ipmi_timeline_vis to make it visible in the rendering routine when running in the browser
+var NetFnCmdToDescription = {
+  '6, 1': 'App-GetDeviceId',
+  '6, 3': 'App-WarmReset',
+  '10, 64': 'Storage-GetSelInfo',
+  '10, 35': 'Storage-GetSdr',
+  '4, 32': 'Sensor-GetDeviceSDRInfo',
+  '4, 34': 'Sensor-ReserveDeviceSDRRepo',
+  '4, 47': 'Sensor-GetSensorType',
+  '10, 34': 'Storage-ReserveSdrRepository',
+  '46, 50': 'OEM Extension',
+  '4, 39': 'Sensor-GetSensorThresholds',
+  '4, 45': 'Sensor-GetSensorReading',
+  '10, 67': 'Storage-GetSelEntry',
+  '58, 196': 'IBM_OEM',
+  '10, 32': 'Storage-GetSdrRepositoryInfo',
+  '4, 33': 'Sensor-GetDeviceSDR',
+  '6, 54': 'App-Get BT Interface Capabilities',
+  '10, 17': 'Storage-ReadFruData',
+  '10, 16': 'Storage-GetFruInventoryAreaInfo',
+  '4, 2': 'Sensor-PlatformEvent',
+  '4, 48': 'Sensor-SetSensor',
+  '6, 34': 'App-ResetWatchdogTimer'
+};
+
+let HighlightedRequests = [];
 
 // Global timeline start
 var g_StartingSec = undefined;

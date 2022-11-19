@@ -13,11 +13,6 @@
 //    picks up the updated Intervals and Titles arrays and draws on the canvas
 //    accordingly.
 
-const {dialog} = require('electron');
-//const {fs} = require('file-system');
-const {util} = require('util');
-const {exec} = require('child_process');
-
 // Main view objects
 var ipmi_timeline_view = new IPMITimelineView();
 ipmi_timeline_view.IsTimeDistributionEnabled = true;
@@ -89,24 +84,35 @@ document.getElementById('gen_replay_ipmid_new')
     .addEventListener('click', function() {
       GenerateBusctlReplayNewInterface(HighlightedRequests);
     });
-document.getElementById('btn_start_capture')
+
+let cap = document.getElementById('btn_start_capture');
+if (cap != undefined) {
+  document.getElementById('btn_start_capture')
     .addEventListener('click', function() {
       let h = document.getElementById('text_hostname').value;
       g_capture_state = 'started';
       StartCapture(h);
     });
+}
 
 // For capture mode
-document.getElementById('btn_stop_capture')
-    .addEventListener('click', function() {
+var btn = document.getElementById('btn_stop_capture');
+if (btn != undefined) {
+    btn.addEventListener('click', function() {
       StopCapture();
     });
-document.getElementById('select_capture_mode')
-    .addEventListener('click', OnCaptureModeChanged);
-radio_open_file.addEventListener('click', OnAppModeChanged);
-radio_capture.addEventListener('click', OnAppModeChanged);
-
-radio_open_file.click();
+}
+btn = document.getElementById('select_capture_mode')
+if (btn != undefined) {
+    btn.addEventListener('click', OnCaptureModeChanged);
+}
+if (radio_open_file != null) {
+  radio_open_file.addEventListener('click', OnAppModeChanged);
+  radio_open_file.click();
+}
+if (radio_capture != null) {
+  radio_capture.addEventListener('click', OnAppModeChanged);
+}
 
 // App mode: open file or capture
 function OnAppModeChanged() {
@@ -144,22 +150,6 @@ function OnCaptureModeChanged() {
   i.textContent = desc;
 }
 
-// Data
-var HistoryHistogram = [];
-// var Data_IPMI = []
-
-// =====================
-
-let Intervals = [];
-let Titles = [];
-let HighlightedRequests = [];
-let GroupBy = [];
-let GroupByStr = '';
-
-// (NetFn, Cmd) -> [ Bucket Indexes ]
-// Normalized (0~1) bucket index for the currently highlighted IPMI requests
-let IpmiVizHistHighlighted = {};
-let HistogramThresholds = {};
 
 function IsIntersected(i0, i1) {
   return (!((i0[1] < i1[0]) || (i0[0] > i1[1])));
@@ -172,30 +162,6 @@ function IsIntersectedPixelCoords(i0, i1) {
     return (IsIntersected(i0, i1));
   }
 }
-
-var NetFnCmdToDescription = {
-  '6, 1': 'App-GetDeviceId',
-  '6, 3': 'App-WarmReset',
-  '10, 64': 'Storage-GetSelInfo',
-  '10, 35': 'Storage-GetSdr',
-  '4, 32': 'Sensor-GetDeviceSDRInfo',
-  '4, 34': 'Sensor-ReserveDeviceSDRRepo',
-  '4, 47': 'Sensor-GetSensorType',
-  '10, 34': 'Storage-ReserveSdrRepository',
-  '46, 50': 'OEM Extension',
-  '4, 39': 'Sensor-GetSensorThresholds',
-  '4, 45': 'Sensor-GetSensorReading',
-  '10, 67': 'Storage-GetSelEntry',
-  '58, 196': 'IBM_OEM',
-  '10, 32': 'Storage-GetSdrRepositoryInfo',
-  '4, 33': 'Sensor-GetDeviceSDR',
-  '6, 54': 'App-Get BT Interface Capabilities',
-  '10, 17': 'Storage-ReadFruData',
-  '10, 16': 'Storage-GetFruInventoryAreaInfo',
-  '4, 2': 'Sensor-PlatformEvent',
-  '4, 48': 'Sensor-SetSensor',
-  '6, 34': 'App-ResetWatchdogTimer'
-};
 
 const CANVAS_H = document.getElementById('my_canvas_ipmi').height;
 const CANVAS_W = document.getElementById('my_canvas_ipmi').width;
@@ -216,23 +182,11 @@ let CurrDeltaX = 0;         // Proportion of Canvas to scroll per frame.
 let CurrDeltaZoom = 0;      // Delta zoom per frame.
 let CurrShiftFlag = false;  // Whether the Shift key is depressed
 
-// TODO: these variables are shared across all views but are now in ipmi_timeline_vis.js, need to move to some other location some time
-const LEFT_MARGIN = 640
-const RIGHT_MARGIN = 1390;
-const LINE_HEIGHT = 15;
-const LINE_SPACING = 17;
-const YBEGIN = 22 + LINE_SPACING;
-const TOP_HORIZONTAL_SCROLLBAR_HEIGHT = YBEGIN - LINE_HEIGHT / 2; // ybegin is the center of the 1st line of the text so need to minus line_height/2
-const BOTTOM_HORIZONTAL_SCROLLBAR_HEIGHT = LINE_HEIGHT;
-const TEXT_Y0 = 3;
-const HISTOGRAM_W = 100, HISTOGRAM_H = LINE_SPACING;
-const HISTOGRAM_X = 270;
 // If some request's time is beyond the right tail, it's considered "too long"
 // If some request's time is below the left tail it's considered "good"
 // const HISTOGRAM_LEFT_TAIL_WIDTH = 0.05, HISTOGRAM_RIGHT_TAIL_WIDTH = 0.05;
 // temporarily disabled for now
 const HISTOGRAM_LEFT_TAIL_WIDTH = -1, HISTOGRAM_RIGHT_TAIL_WIDTH = -1;
-const SCROLL_BAR_WIDTH = 16;
 
 let IpmiVizHistogramImageData = {};  // Image data for rendered histogram
 

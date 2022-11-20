@@ -75,6 +75,8 @@ struct FixedHeader {
   uint32_t length;
   uint32_t cookie;
 
+  FixedHeader() {}
+
   FixedHeader(const RawMessage& raw);
   void Print();
 };
@@ -131,6 +133,9 @@ struct TypeContainer {
       case DBusDataType::STRUCT:
         o << "(";
         break;
+      case DBusDataType::DICT_ENTRY:
+        o << "{";
+        break;
       default:
         sprintf(buf, "%c", int(type));
         o << buf;
@@ -144,6 +149,9 @@ struct TypeContainer {
     switch (type) {
       case DBusDataType::STRUCT:
         o << ")";
+        break;
+      case DBusDataType::DICT_ENTRY:
+        o << "}";
         break;
       default: break;
     }
@@ -191,12 +199,21 @@ struct AlignedStream {
         ret.push_back(buf->at(offset));
         offset += 1;
         break;
+      case DBusDataType::INT32:
       case DBusDataType::UINT32:
         ret.push_back(buf->at(offset));
         ret.push_back(buf->at(offset+1));
         ret.push_back(buf->at(offset+2));
         ret.push_back(buf->at(offset+3));
         offset += 4;
+        break;
+      case DBusDataType::INT64:
+      case DBusDataType::UINT64:
+      case DBusDataType::DOUBLE:
+        for (int i=0; i<8; i++) {
+          ret.push_back(buf->at(offset + i));
+        }
+        offset += 8;
         break;
       default: {
         printf("Type %s not implemented\n", tc.ToString().c_str());
@@ -209,9 +226,20 @@ struct AlignedStream {
   void Align(const TypeContainer& tc) {
     int alignment = 1;
     switch (tc.type) {
-      case DBusDataType::STRUCT: alignment = 8; break;
-      case DBusDataType::ARRAY:  alignment = 4; break;
+      case DBusDataType::BYTE:   alignment = 1; break;
+      case DBusDataType::STRUCT:
+      case DBusDataType::DICT_ENTRY:
+        alignment = 8; break;
+      case DBusDataType::ARRAY:
+      case DBusDataType::STRING:
+      case DBusDataType::INT32:
+      case DBusDataType::UINT32:
+        alignment = 4; break;
+      case DBusDataType::UINT16: alignment = 2; break;
+      case DBusDataType::UINT64: alignment = 8; break;
+      case DBusDataType::DOUBLE: alignment = 8; break;
       default: {
+        printf("DBusDataType %c alignment not supported.\n", int(tc.type));
         assert(0);
         break;
       }
@@ -229,7 +257,8 @@ struct AlignedStream {
 // Parsing
 DBusVariant ParseFixed(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc);
 DBusType ParseType(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc);
-TypeContainer ParseSignature(const std::string& sig);
+TypeContainer ParseOneSignature(const std::string& sig, int* out_idx=nullptr);
+std::vector<TypeContainer> ParseSignatures(const std::string& sig);
 void ProcessByteArray(const std::vector<uint8_t>& buf);
 DBusType ParseContainer(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig);
 MessageHeaderType ToMessageHeaderType(int x);

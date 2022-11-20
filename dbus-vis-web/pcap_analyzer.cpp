@@ -168,19 +168,23 @@ void RawMessage::Print() {
 	printf("[RawMessage] Endian:%s\n", MessageEndianStr[int(endian)]);
 }
 
-uint32_t BytesToUint32LE(const uint8_t* data) {
-	uint32_t ret = data[0] |
-								 (data[1] << 8) |
-								 (data[2] << 16) |
-								 (data[3] << 24);
+template<typename T>
+T BytesToTypeLE(const uint8_t* data) {
+	T ret;
+	uint8_t* ptr = reinterpret_cast<uint8_t*>(&ret);
+	for (int i=0; i<sizeof(T); i++) {
+		ptr[i] = data[i];
+	}
 	return ret;
 }
 
-uint32_t BytesToUint32BE(const uint8_t* data) {
-	uint32_t ret = data[3] |
-								 (data[2] << 8) |
-								 (data[1] << 16) |
-								 (data[0] << 24);
+template<typename T>
+T BytesToTypeBE(const uint8_t* data) {
+	T ret;
+	uint8_t* ptr = reinterpret_cast<uint8_t*>(&ret);
+	for (int i=0; i<sizeof(T); i++) {
+		ptr[i] = data[sizeof(T)-1-i];
+	}
 	return ret;
 }
 
@@ -193,11 +197,11 @@ FixedHeader::FixedHeader(const RawMessage& raw) {
 	flags   = header[2];
 	version = header[3];
 	if (raw.endian == MessageEndian::LITTLE) {
-		length = BytesToUint32LE(header.data()+4);
-		cookie = BytesToUint32LE(header.data()+8);
+		length = BytesToTypeLE<uint32_t>(header.data()+4);
+		cookie = BytesToTypeLE<uint32_t>(header.data()+8);
 	} else {
-		length = BytesToUint32BE(header.data()+4);
-		cookie = BytesToUint32BE(header.data()+8);
+		length = BytesToTypeBE<uint32_t>(header.data()+4);
+		cookie = BytesToTypeBE<uint32_t>(header.data()+8);
 	}
 }
 
@@ -242,6 +246,14 @@ TypeContainer do_ParseSignature(const std::string& sig, int& idx) {
 			}
 			idx ++;
 			break;
+		case '{':
+			ret.type = DBusDataType::DICT_ENTRY;
+			idx ++;
+			while (sig.at(idx) != '}') {
+				ret.members.push_back(do_ParseSignature(sig, idx));
+			}
+			idx ++;
+			break;
 		default: {
 			printf("Signature %c in %s not implemented\n", ch, sig.c_str());
 			assert(0);
@@ -250,13 +262,25 @@ TypeContainer do_ParseSignature(const std::string& sig, int& idx) {
 	return ret;
 }
 
-TypeContainer ParseSignature(const std::string& sig) {
+TypeContainer ParseOneSignature(const std::string& sig, int* out_idx) {
 	int idx = 0;
-	return do_ParseSignature(sig, idx);
+	if (out_idx) { idx = *out_idx; }
+	TypeContainer ret = do_ParseSignature(sig, idx);
+	if (out_idx) { *out_idx = idx; }
+	return ret;
+}
+
+std::vector<TypeContainer> ParseSignatures(const std::string& sig) {
+	int idx = 0;
+	std::vector<TypeContainer> ret;
+	while (idx < sig.size()) {
+		ret.push_back(ParseOneSignature(sig, &idx));
+	}
+	return ret;
 }
 
 DBusMessageFields ParseFields(MessageEndian endian, AlignedStream* stream) {
-	TypeContainer sig = ParseSignature("a(yv)");
+	TypeContainer sig = ParseOneSignature("a(yv)");
 	DBusContainer fields = std::get<DBusContainer>(ParseContainer(endian, stream, sig));
 	stream->Align(TypeContainer(DBusDataType::STRUCT));
 
@@ -289,7 +313,10 @@ DBusMessageFields ParseFields(MessageEndian endian, AlignedStream* stream) {
 	return ret;
 }
 
-std::pair<FixedHeader, DBusMessageFields> ParseHeader(const unsigned char* data, int len) {
+// AlignedStream is written so it can be used for parsing the messagebody.
+//std::pair<FixedHeader, DBusMessageFields> 
+bool ParseHeaderAndBody(const unsigned char* data, int len, FixedHeader* fixed_out, DBusMessageFields* fields_out,
+	std::vector<DBusType>* body_out) {
 	// Fixed header: 12 bytes
 	RawMessage rawmsg(data, len);
 	//rawmsg.Print();
@@ -297,30 +324,81 @@ std::pair<FixedHeader, DBusMessageFields> ParseHeader(const unsigned char* data,
 	FixedHeader fixed(rawmsg);
 	//fixed.Print();
 
-	// Variable header: Starting from [12]
+	if (fixed_out) {
+		*fixed_out = fixed;
+	}
+
 	AlignedStream s;
-	std::vector<uint8_t> buf;
 	s.buf = &rawmsg.data;
 	s.offset = 12;
 	DBusMessageFields fields = ParseFields(fixed.endian, &s);
 
-	return std::make_pair(fixed, fields);
+	if (fields_out) {
+		// Variable header: Starting from [12]
+		*fields_out = fields;
+	}
+	
+	if (body_out) {
+		std::string sig;
+		for (const auto& entry : fields) {
+			if (entry.first == MessageHeaderType::SIGNATURE) {
+				sig = std::get<std::string>(entry.second);
+				break;
+			}
+		}
+
+		std::vector<TypeContainer> tcs = ParseSignatures(sig);
+		for (const auto& tc : tcs) {
+			body_out->push_back(ParseType(fixed.endian, &s, tc));
+		}
+	}
+	return true;
 }
 
 // Parse fixed-size DBus types (byte, boolean, [u]int16, [u]int32, [u]int64, double, fd)
 DBusVariant ParseFixed(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc) {
 	DBusVariant ret;
+	stream->Align(tc);
 	std::vector<uint8_t> bytes = stream->Take(tc);
 	switch (tc.type) {
 		case DBusDataType::BYTE: {
 			ret = uint8_t(bytes[0]);
 			break;
 		}
+		case DBusDataType::INT32: {
+			if (endian == MessageEndian::LITTLE) {
+				ret = BytesToTypeLE<int32_t>(bytes.data());
+			} else {
+				ret = BytesToTypeBE<int32_t>(bytes.data());
+			}
+			break;
+		}
 		case DBusDataType::UINT32:
 			if (endian == MessageEndian::LITTLE) {
-				ret = BytesToUint32LE(bytes.data());
+				ret = BytesToTypeLE<uint32_t>(bytes.data());
 			} else {
-				ret = BytesToUint32LE(bytes.data());
+				ret = BytesToTypeBE<uint32_t>(bytes.data());
+			}
+			break;
+		case DBusDataType::INT64:
+			if (endian == MessageEndian::LITTLE) {
+				ret = BytesToTypeLE<int64_t>(bytes.data());
+			} else {
+				ret = BytesToTypeBE<int64_t>(bytes.data());
+			}
+			break;
+		case DBusDataType::UINT64:
+			if (endian == MessageEndian::LITTLE) {
+				ret = BytesToTypeLE<uint64_t>(bytes.data());
+			} else {
+				ret = BytesToTypeBE<uint64_t>(bytes.data());
+			}
+			break;
+		case DBusDataType::DOUBLE:
+			if (endian == MessageEndian::LITTLE) {
+				ret = BytesToTypeLE<double>(bytes.data());
+			} else {
+				ret = BytesToTypeBE<double>(bytes.data());
 			}
 			break;
 		default: {
@@ -337,12 +415,16 @@ DBusContainer ParseArray(MessageEndian endian, AlignedStream* stream, const std:
 	uint32_t len = std::get<uint32_t>(ParseFixed(endian, stream,
 		TypeContainer(DBusDataType::UINT32)));
 	stream->Align(TypeContainer(DBusDataType::ARRAY));
-	int offset = stream->offset;
-	while (stream->offset < offset + len) {
+	int offset_start = stream->offset;
+	bool done = false;
+	while (!done && stream->offset < offset_start + len) {
 		for (const TypeContainer& tc : members) {
+			int offset = stream->offset;
 			try {
 				ret.values.push_back(ParseType(endian, stream, tc));
 			} catch (const std::exception& e) {  // Array is parsed on an "as much as possible" basis
+				stream->offset = offset;
+				done = true;
 				break;
 			}
 		}
@@ -382,7 +464,6 @@ DBusVariant ParseString(MessageEndian endian, AlignedStream* stream, const TypeC
 	std::string ret;
 	for (int i=0; i<size; i++) { ret.push_back(stream->TakeOneByte()); }
 	stream->TakeOneByte(); // Take one extra byte if the string is non-empty.
-
 	if (sig.type == DBusDataType::OBJECT_PATH) {
 		object_path op;
 		op.str = ret;
@@ -399,7 +480,7 @@ DBusType ParseVariant(MessageEndian endian, AlignedStream* stream, const TypeCon
 	} else {
 		s = std::get<object_path>(vs).str;
 	}
-	TypeContainer tc = ParseSignature(s);
+	TypeContainer tc = ParseOneSignature(s);
 	return ParseType(endian, stream, tc);
 }
 
@@ -443,7 +524,12 @@ void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, cons
 	int caplen = pkthdr->caplen, len = pkthdr->len;
 
 	if (caplen >= 12) {
-		auto [fixed, fields] = ParseHeader(packet, caplen);
+		AlignedStream s;
+		MessageEndian endian;
+		FixedHeader fixed;
+		DBusMessageFields fields;
+		std::vector<DBusType> body;
+		ParseHeaderAndBody(packet, caplen, &fixed, &fields, &body);
 		#ifdef DBUS_PCAP_USING_EMSCRIPTEN
 		
 		std::string path, iface, member, destination, sender;
@@ -520,7 +606,7 @@ void PrintByteArray(const std::vector<uint8_t>& arr, const int width = 16) {
 void ProcessByteArray(const std::vector<uint8_t>& buf) {
 	std::FILE* tmpf = std::tmpfile();
 	char errbuf[PCAP_ERRBUF_SIZE];
-	memset(errbuf, sizeof(errbuf), 0);
+	memset(errbuf, 0x00, sizeof(errbuf));
 	pcap_t* the_pcap = nullptr;
 	printf("%zd bytes\n", buf.size());
 	if (getenv("VERBOSE"))

@@ -34,7 +34,7 @@ TEST(PcapAnalyzerTest, ParseMessageHeaderTest) {
     AlignedStream stream;
     stream.buf = &bytes;
     stream.offset = 4;
-    TypeContainer tc = ParseSignature("a(yv)");
+    TypeContainer tc = ParseOneSignature("a(yv)");
     // Should not crash
     DBusType val = ParseType(MessageEndian::LITTLE, &stream, tc);
     ASSERT_TRUE(std::holds_alternative<DBusContainer>(val));
@@ -77,6 +77,14 @@ TEST(PcapAnalyzerTest, ParseMessageHeaderTest) {
     ASSERT_EQ(std::get<uint8_t>(v), 7);
     v = std::get<DBusVariant>(struct4.values[1]);
     ASSERT_EQ(std::get<std::string>(v), ":1.7");
+}
+
+TEST(PcapAnalzerTest, MultipleMembersInSignature) {
+    std::vector<TypeContainer> tcs = ParseSignatures("sa{sv}as");
+    ASSERT_EQ(tcs.size(), 3);
+    ASSERT_EQ(tcs[0].ToString(), "s");
+    ASSERT_EQ(tcs[1].ToString(), "a{sv}");
+    ASSERT_EQ(tcs[2].ToString(), "as");
 }
 
 int main(int argc, char **argv) {

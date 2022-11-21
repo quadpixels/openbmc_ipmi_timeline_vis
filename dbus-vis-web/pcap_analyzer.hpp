@@ -262,5 +262,7 @@ std::vector<TypeContainer> ParseSignatures(const std::string& sig);
 void ProcessByteArray(const std::vector<uint8_t>& buf);
 DBusType ParseContainer(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig);
 MessageHeaderType ToMessageHeaderType(int x);
+void PrintDBusType(const DBusType& x);
+std::string DBusTypeToJSON(const DBusType& x);
 
 #endif

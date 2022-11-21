@@ -514,6 +514,120 @@ DBusType ParseType(MessageEndian endian, AlignedStream* stream, const TypeContai
 	}
 }
 
+// TODO: Currently we're showing the "cooked" type, meaning: a FD
+// shows up as an UINT32.
+//
+// Need to make them show up properly as DBus types
+void do_PrintDBusType(const DBusType& x, const int indent) {
+	for (int i=0; i<indent; i++) { printf("  "); }
+	if (std::holds_alternative<DBusVariant>(x)) {
+		const DBusVariant& v = std::get<DBusVariant>(x);
+		if (std::holds_alternative<bool>(v)) {
+			printf("b %s\n", std::get<bool>(v) == true ? "true" : "false");
+		} else if (std::holds_alternative<uint8_t>(v)) {
+			printf("y 0x%x\n", std::get<uint8_t>(v));
+		} else if (std::holds_alternative<uint16_t>(v)) {
+			printf("q %u\n", uint32_t(std::get<uint16_t>(v)));
+		} else if (std::holds_alternative<int16_t>(v)) {
+			printf("n %d\n", int32_t(std::get<int16_t>(v)));
+		} else if (std::holds_alternative<uint32_t>(v)) {
+			printf("u %u\n", std::get<uint32_t>(v));
+		} else if (std::holds_alternative<int32_t>(v)) {
+			printf("i %d\n", std::get<int32_t>(v));
+		} else if (std::holds_alternative<uint64_t>(v)) {
+			printf("t %lu\n", std::get<uint64_t>(v));
+		} else if (std::holds_alternative<int64_t>(v)) {
+			printf("x %ld\n", std::get<int64_t>(v));
+		} else if (std::holds_alternative<double>(v)) {
+			printf("d %g\n", std::get<double>(v));
+		} else if (std::holds_alternative<std::string>(v)) {
+			printf("s %s\n", std::get<std::string>(v).c_str());
+		} else if (std::holds_alternative<object_path>(v)) {
+			printf("o %s\n", std::get<object_path>(v).str.c_str());
+		} else {
+			printf("(unknown type)\n");
+		}
+	} else if (std::holds_alternative<DBusContainer>(x)) {
+		const DBusContainer& dc = std::get<DBusContainer>(x);
+		printf(">> container\n");
+		for (const auto& v : dc.values) {
+			do_PrintDBusType(v, indent + 1);
+		}
+		for (int i=0; i<indent; i++) { printf("  "); }
+		printf("<< container\n");
+	} else {
+		printf("(Unknown variant of DBusType)\n");
+	}
+}
+
+void PrintDBusType(const DBusType& x) {
+	do_PrintDBusType(x, 0);
+}
+
+void do_DBusTypeToJSON(const DBusType& x, std::ostream& os) {
+	if (std::holds_alternative<DBusVariant>(x)) {
+		const DBusVariant& v = std::get<DBusVariant>(x);
+		if (std::holds_alternative<bool>(v)) {
+			if (std::get<bool>(v) == true) {
+				os << "true";
+			} else {
+				os << "false";
+			}
+		} else if (std::holds_alternative<uint8_t>(v)) {
+			os << std::to_string(std::get<uint8_t>(v));
+		} else if (std::holds_alternative<uint16_t>(v)) {
+			os << std::to_string(std::get<uint16_t>(v));
+		} else if (std::holds_alternative<int16_t>(v)) {
+			os << std::to_string(std::get<int16_t>(v));
+		} else if (std::holds_alternative<uint32_t>(v)) {
+			os << std::to_string(std::get<uint32_t>(v));
+		} else if (std::holds_alternative<int32_t>(v)) {
+			os << std::to_string(std::get<int32_t>(v));
+		} else if (std::holds_alternative<uint64_t>(v)) {
+			os << std::to_string(std::get<uint64_t>(v));
+		} else if (std::holds_alternative<int64_t>(v)) {
+			os << std::to_string(std::get<int64_t>(v));
+		} else if (std::holds_alternative<double>(v)) {
+			os << std::to_string(std::get<double>(v));
+		} else if (std::holds_alternative<std::string>(v)) {
+			os << "\"" << std::get<std::string>(v) << "\"";
+		} else if (std::holds_alternative<object_path>(v)) {
+			os << "\"" << std::get<object_path>(v).str << "\"";
+		} else {
+			os << "undefined";
+		}
+	} else if (std::holds_alternative<DBusContainer>(x)) {
+		const DBusContainer& dc = std::get<DBusContainer>(x);
+		os << "[";
+		for (int i=0; i<int(dc.values.size()); i++) {
+			const auto& v = dc.values[i];
+			do_DBusTypeToJSON(v, os);
+		}
+		os << "]";
+	} else {
+		printf("(Unknown variant of DBusType)\n");
+	}
+}
+
+std::string DBusTypeToJSON(const DBusType& x) {
+	std::stringstream ss;
+	do_DBusTypeToJSON(x, ss);
+	return ss.str();
+}
+
+std::string DBusBodyToJSON(const std::vector<DBusType>& body) {
+	std::stringstream ss;
+	ss << "[ ";
+	for (int i=0; i<int(body.size()); i++) {
+		if (i > 0) { ss << ", "; }
+		std::string x = DBusTypeToJSON(body[i]);
+		if (x == "") x = "null";
+		ss << x;
+	}
+	ss << "]";
+	return ss.str();
+}
+
 // Process 1 packet
 void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, const unsigned char* packet) {
 	const struct timeval& ts = pkthdr->ts;
@@ -530,6 +644,20 @@ void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, cons
 		DBusMessageFields fields;
 		std::vector<DBusType> body;
 		ParseHeaderAndBody(packet, caplen, &fixed, &fields, &body);
+
+		char* x = getenv("VERBOSE");
+		if (x) {
+			printf("--------- Packet #%d ----------\n", g_num_packets);
+			fixed.Print();
+			if (std::string(x) == "json") {
+				printf("%s\n", DBusBodyToJSON(body).c_str());
+			} else {
+				for (const DBusType& x : body) {
+					PrintDBusType(x);
+				}
+			}
+		}
+
 		#ifdef DBUS_PCAP_USING_EMSCRIPTEN
 		
 		std::string path, iface, member, destination, sender;

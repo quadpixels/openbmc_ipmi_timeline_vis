@@ -256,10 +256,14 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
         'mc', timestamp * 1000, serial, sender, destination, path, iface, member,
         timestamp * 1000, [], [], '' // TODO: fill in packet
       ];
-      
-      // TODO: Add IPMI details
+
       g_preproc.push(entry);
       g_in_flight[serial] = entry;
+
+      // Process IPMI
+      if (iface == "org.openbmc_project.Ipmi.Server" && member == "execute") {
+      }
+
       break;
     }
     case 2: { // Method reply
@@ -269,6 +273,7 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
         x[IDX_TIMESTAMP_END] = timestamp * 1000;
         x[IDX_MC_OUTCOME] = 'ok';
       }
+      
       // TODO: Add IPMI handling
       break;
     }

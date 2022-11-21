@@ -37,11 +37,18 @@ class Renderer {
 
   update() {
     console.log('update, ' + window.innerWidth + ' x ' + window.innerHeight);
-    if (false) {
-      this.width1 = window.innerWidth;
-      this.height1 = window.innerHeight;
-      this.canvas1.width = this.width1;
-      this.canvas1.height = this.height1;
+    if (true) {
+      const w = Math.max(720, window.innerWidth - 32);
+      this.width1 = w;
+      this.width2 = w;
+      this.width3 = w;
+      this.canvas1.width = w;
+      this.canvas2.width = w;
+      this.canvas3.width = w;
+      dbus_timeline_view.IsCanvasDirty = true;
+      ipmi_timeline_view.IsCanvasDirty = true;
+      boost_asio_handler_timeline_view.IsCanvasDirty = true;
+      RIGHT_MARGIN = w - 10;
     }
   }
 

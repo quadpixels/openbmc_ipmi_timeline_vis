@@ -587,7 +587,10 @@ void PrintDBusType(const DBusType& x) {
 	do_PrintDBusType(x, 0);
 }
 
-void do_DBusTypeToJSON(const DBusType& x, std::ostream& os) {
+void do_DBusTypeToJSON(const DBusType& x, std::ostream& os, int& idx) {
+	if (idx > 0) {
+		os << ", ";
+	}
 	if (std::holds_alternative<DBusVariant>(x)) {
 		const DBusVariant& v = std::get<DBusVariant>(x);
 		if (std::holds_alternative<bool>(v)) {
@@ -611,7 +614,11 @@ void do_DBusTypeToJSON(const DBusType& x, std::ostream& os) {
 		} else if (std::holds_alternative<int64_t>(v)) {
 			os << std::to_string(std::get<int64_t>(v));
 		} else if (std::holds_alternative<double>(v)) {
-			os << std::to_string(std::get<double>(v));
+			std::string vs = std::to_string(std::get<double>(v));
+			if (vs == "nan") { vs = "\"NaN\""; }
+			else if (vs == "inf") { vs = "\"Infinity\""; }
+			else if (vs == "-inf") { vs = "\"-Infinity\""; }
+			os << vs;
 		} else if (std::holds_alternative<std::string>(v)) {
 			os << "\"" << std::get<std::string>(v) << "\"";
 		} else if (std::holds_alternative<object_path>(v)) {
@@ -619,14 +626,17 @@ void do_DBusTypeToJSON(const DBusType& x, std::ostream& os) {
 		} else {
 			os << "undefined";
 		}
+		idx ++;
 	} else if (std::holds_alternative<DBusContainer>(x)) {
 		const DBusContainer& dc = std::get<DBusContainer>(x);
 		os << "[";
+		int idx1 = 0;
 		for (int i=0; i<int(dc.values.size()); i++) {
 			const auto& v = dc.values[i];
-			do_DBusTypeToJSON(v, os);
+			do_DBusTypeToJSON(v, os, idx1);
 		}
 		os << "]";
+		idx ++;
 	} else {
 		printf("(Unknown variant of DBusType)\n");
 	}
@@ -634,7 +644,8 @@ void do_DBusTypeToJSON(const DBusType& x, std::ostream& os) {
 
 std::string DBusTypeToJSON(const DBusType& x) {
 	std::stringstream ss;
-	do_DBusTypeToJSON(x, ss);
+	int idx = 0;
+	do_DBusTypeToJSON(x, ss, idx);
 	return ss.str();
 }
 
@@ -725,10 +736,12 @@ void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, cons
 							 UTF8ToString($5),  // destination (string)
 							 UTF8ToString($6),  // path (string)
 							 UTF8ToString($7),  // iface (string)
-							 UTF8ToString($8)   // member (string)
+							 UTF8ToString($8),  // member (string)
+							 UTF8ToString($9),  // body (JSON)
 							 );
 		}, sec, int(fixed.type), fixed.cookie, reply_serial, 
-			sender.c_str(), destination.c_str(), path.c_str(), iface.c_str(), member.c_str());
+			sender.c_str(), destination.c_str(), path.c_str(), iface.c_str(), member.c_str(),
+			DBusBodyToJSON(body).c_str());
 		#endif
 	}
 

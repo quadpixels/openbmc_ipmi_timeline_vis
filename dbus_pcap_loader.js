@@ -227,7 +227,7 @@ const IDX_TIMESTAMP_END = 8;
 const IDX_MC_OUTCOME = 9;  // Outcome of method call
 
 // Called by CXX
-function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destination, path, iface, member) {
+function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destination, path, iface, member, body) {
 
   const millis = Date.now();
   if (millis - g_last_update_millis > 100) { // Refresh at most 10 times per second
@@ -238,6 +238,14 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
 
   RANGE_RIGHT_INIT = Math.max(RANGE_RIGHT_INIT, timestamp);
   RANGE_LEFT_INIT  = Math.min(RANGE_LEFT_INIT,  timestamp);
+
+  let body_parsed = undefined;
+  
+  try {
+    body_parsed = JSON.parse(body);
+  } catch (e) {
+    // Print parsing errors here if needed
+  }
 
   switch (type) {
     case 4: { // Signal
@@ -257,13 +265,21 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
         timestamp * 1000, [], [], '' // TODO: fill in packet
       ];
 
-      g_preproc.push(entry);
-      g_in_flight[serial] = entry;
-
-      // Process IPMI
-      if (iface == "org.openbmc_project.Ipmi.Server" && member == "execute") {
+      if (iface == 'xyz.openbmc_project.Ipmi.Server' && member == 'execute' && body_parsed != undefined) {
+        let ipmi_entry = {
+          netfn: body_parsed[0],
+          lun: body_parsed[1],
+          cmd: body_parsed[2],
+          request: body_parsed[3],
+          start_usec: MyFloatMillisToBigIntUsec(timestamp * 1000),
+          end_usec: 0,
+          response: []
+        };
+        g_in_flight_ipmi[serial] = (ipmi_entry);
       }
 
+      g_preproc.push(entry);
+      g_in_flight[serial] = entry;
       break;
     }
     case 2: { // Method reply
@@ -274,7 +290,15 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
         x[IDX_MC_OUTCOME] = 'ok';
       }
       
-      // TODO: Add IPMI handling
+      if (reply_serial in g_in_flight_ipmi) {
+        let x = g_in_flight_ipmi[reply_serial];
+        delete g_in_flight_ipmi[reply_serial];
+        if (body[0] != undefined && body[0][4] != undefined) {
+          x.response = body_parsed[0][4];
+        }
+        x.end_usec = MyFloatMillisToBigIntUsec(timestamp * 1000);
+        g_ipmi_parsed_entries.push(x);
+      }
       break;
     }
     case 3: { // Error reply
@@ -311,6 +335,7 @@ function OnFinishParsingDBusPcap() {
     ShowNavigation();
     UpdateFileNamesString();
   }
+  if (g_ipmi_parsed_entries.length > 0) UpdateLayout();  // Updates IPMI view.
   OnGroupByConditionChanged_DBus(); // Need this for initial layout computation upon loading pcap file
   g_btn_zoom_reset.click(); // Zoom to capture time range
 }
@@ -477,6 +502,6 @@ function Preprocess_DBusPcap(data, timestamps) {
     }
   }
 
-  if (g_ipmi_parsed_entries.length > 0) UpdateLayout();
+  if (g_ipmi_parsed_entries.length > 0) UpdateLayout();  // Updates IPMI view.
   return ret;
 }

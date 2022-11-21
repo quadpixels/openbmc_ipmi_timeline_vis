@@ -256,7 +256,7 @@ TypeContainer do_ParseSignature(const std::string& sig, int& idx) {
 			break;
 		default: {
 			printf("Signature %c in %s not implemented\n", ch, sig.c_str());
-			assert(0);
+			throw std::runtime_error("signature not implemented");
 		}
 	}
 	return ret;
@@ -349,7 +349,11 @@ bool ParseHeaderAndBody(const unsigned char* data, int len, FixedHeader* fixed_o
 
 		std::vector<TypeContainer> tcs = ParseSignatures(sig);
 		for (const auto& tc : tcs) {
-			body_out->push_back(ParseType(fixed.endian, &s, tc));
+			try {
+				body_out->push_back(ParseType(fixed.endian, &s, tc));
+			} catch (const std::exception& e) {
+				;  // TODO: Mark this packet as partially parsed due to it being truncated
+			}
 		}
 	}
 	return true;
@@ -365,6 +369,25 @@ DBusVariant ParseFixed(MessageEndian endian, AlignedStream* stream, const TypeCo
 			ret = uint8_t(bytes[0]);
 			break;
 		}
+		case DBusDataType::BOOLEAN: {
+			ret = bool(bytes[0]);
+			break;
+		}
+		case DBusDataType::INT16: {
+			if (endian == MessageEndian::LITTLE) {
+				ret = BytesToTypeLE<int16_t>(bytes.data());
+			} else {
+				ret = BytesToTypeBE<int16_t>(bytes.data());
+			}
+			break;
+		}
+		case DBusDataType::UINT16:
+			if (endian == MessageEndian::LITTLE) {
+				ret = BytesToTypeLE<uint16_t>(bytes.data());
+			} else {
+				ret = BytesToTypeBE<uint16_t>(bytes.data());
+			}
+			break;
 		case DBusDataType::INT32: {
 			if (endian == MessageEndian::LITTLE) {
 				ret = BytesToTypeLE<int32_t>(bytes.data());
@@ -737,7 +760,8 @@ void ProcessByteArray(const std::vector<uint8_t>& buf) {
 	memset(errbuf, 0x00, sizeof(errbuf));
 	pcap_t* the_pcap = nullptr;
 	printf("%zd bytes\n", buf.size());
-	if (getenv("VERBOSE"))
+	char *v = getenv("VERBOSE");
+	if (v && std::atoi(v) > 1)
 		PrintByteArray(buf);
 	std::filesystem::path p = std::filesystem::path("/proc/self/fd") /
 		std::to_string(fileno(tmpf));

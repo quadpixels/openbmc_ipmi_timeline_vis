@@ -196,8 +196,15 @@ struct AlignedStream {
     switch (tc.type) {
       case DBusDataType::BYTE:
       case DBusDataType::SIGNATURE:
+      case DBusDataType::BOOLEAN:
         ret.push_back(buf->at(offset));
         offset += 1;
+        break;
+      case DBusDataType::INT16:
+      case DBusDataType::UINT16:
+        ret.push_back(buf->at(offset));
+        ret.push_back(buf->at(offset+1));
+        offset += 2;
         break;
       case DBusDataType::INT32:
       case DBusDataType::UINT32:
@@ -226,7 +233,9 @@ struct AlignedStream {
   void Align(const TypeContainer& tc) {
     int alignment = 1;
     switch (tc.type) {
-      case DBusDataType::BYTE:   alignment = 1; break;
+      case DBusDataType::BYTE:
+      case DBusDataType::BOOLEAN:
+        alignment = 1; break;
       case DBusDataType::STRUCT:
       case DBusDataType::DICT_ENTRY:
         alignment = 8; break;
@@ -235,9 +244,12 @@ struct AlignedStream {
       case DBusDataType::INT32:
       case DBusDataType::UINT32:
         alignment = 4; break;
-      case DBusDataType::UINT16: alignment = 2; break;
-      case DBusDataType::UINT64: alignment = 8; break;
-      case DBusDataType::DOUBLE: alignment = 8; break;
+      case DBusDataType::UINT16:
+        alignment = 2; break;
+      case DBusDataType::INT64:
+      case DBusDataType::UINT64:
+      case DBusDataType::DOUBLE:
+        alignment = 8; break;
       default: {
         printf("DBusDataType %c alignment not supported.\n", int(tc.type));
         assert(0);

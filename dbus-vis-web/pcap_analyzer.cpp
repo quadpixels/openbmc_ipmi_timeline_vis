@@ -397,6 +397,7 @@ DBusVariant ParseFixed(MessageEndian endian, AlignedStream* stream, const TypeCo
 			break;
 		}
 		case DBusDataType::UINT32:
+		case DBusDataType::UNIX_FD:
 			if (endian == MessageEndian::LITTLE) {
 				ret = BytesToTypeLE<uint32_t>(bytes.data());
 			} else {
@@ -483,8 +484,8 @@ DBusVariant ParseString(MessageEndian endian, AlignedStream* stream, const TypeC
 	} else if (std::holds_alternative<uint8_t>(v)) {
 		size = int(std::get<uint8_t>(v));
 	}
-	if (size == 0) { return ""; }
-	std::string ret;
+	std::string ret = "";
+	if (size == 0) { return ret; } // return ""; returns an empty DBusVariant.
 	for (int i=0; i<size; i++) { ret.push_back(stream->TakeOneByte()); }
 	stream->TakeOneByte(); // Take one extra byte if the string is non-empty.
 	if (sig.type == DBusDataType::OBJECT_PATH) {
@@ -500,8 +501,10 @@ DBusType ParseVariant(MessageEndian endian, AlignedStream* stream, const TypeCon
 	std::string s;
 	if (std::holds_alternative<std::string>(vs)) {
 		s = std::get<std::string>(vs);
-	} else {
+	} else if (std::holds_alternative<object_path>(vs)) {
 		s = std::get<object_path>(vs).str;
+	} else {
+		throw std::runtime_error("bad variant");
 	}
 	TypeContainer tc = ParseOneSignature(s);
 	return ParseType(endian, stream, tc);
@@ -677,11 +680,15 @@ void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, cons
 		FixedHeader fixed;
 		DBusMessageFields fields;
 		std::vector<DBusType> body;
-		ParseHeaderAndBody(packet, caplen, &fixed, &fields, &body);
 
 		char* x = getenv("VERBOSE");
 		if (x) {
 			printf("--------- Packet #%d ----------\n", g_num_packets);
+		}
+
+		ParseHeaderAndBody(packet, caplen, &fixed, &fields, &body);
+
+		if (x) {
 			fixed.Print();
 			if (std::string(x) == "json") {
 				printf("%s\n", DBusBodyToJSON(body).c_str());

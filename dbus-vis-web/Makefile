@@ -4,7 +4,7 @@ pcap_analyzer: main.cpp pcap_analyzer.cpp pcap_analyzer.hpp
 	$(CXX) main.cpp pcap_analyzer.cpp -o $@ $(CFLAGS) -lpcap -std=c++17 -g
 
 pcap_analyzer_test: pcap_analyzer_test.cpp pcap_analyzer.cpp pcap_analyzer.hpp
-	$(CXX) pcap_analyzer_test.cpp pcap_analyzer.cpp -lpcap -lgtest -lpthread -std=c++17 -o$@
+	$(CXX) pcap_analyzer_test.cpp pcap_analyzer.cpp -lpcap -lgtest -lpthread -std=c++17 -o$@ -g
 
 pcap_analyzer.js: pcap_analyzer.cpp
 	@echo "Will need to first activate the Emscripten SDK."

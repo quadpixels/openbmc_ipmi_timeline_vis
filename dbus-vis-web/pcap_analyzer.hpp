@@ -208,6 +208,7 @@ struct AlignedStream {
         break;
       case DBusDataType::INT32:
       case DBusDataType::UINT32:
+      case DBusDataType::UNIX_FD:
         ret.push_back(buf->at(offset));
         ret.push_back(buf->at(offset+1));
         ret.push_back(buf->at(offset+2));
@@ -243,7 +244,9 @@ struct AlignedStream {
       case DBusDataType::STRING:
       case DBusDataType::INT32:
       case DBusDataType::UINT32:
+      case DBusDataType::UNIX_FD:
         alignment = 4; break;
+      case DBusDataType::INT16:
       case DBusDataType::UINT16:
         alignment = 2; break;
       case DBusDataType::INT64:
@@ -276,5 +279,7 @@ DBusType ParseContainer(MessageEndian endian, AlignedStream* stream, const TypeC
 MessageHeaderType ToMessageHeaderType(int x);
 void PrintDBusType(const DBusType& x);
 std::string DBusTypeToJSON(const DBusType& x);
+bool ParseHeaderAndBody(const unsigned char* data, int len, FixedHeader* fixed_out, DBusMessageFields* fields_out,
+	std::vector<DBusType>* body_out);
 
 #endif

@@ -191,6 +191,13 @@ function OpenDBusPcapFile2(file_name) {
   ShowBlocker('Sending PCAP file ...')
   console.log("ShowBlocker");
 
+  g_preproc = [];
+  g_in_flight = [];
+  g_in_flight_ipmi = [];
+  g_timestamps = [];
+  g_num_packets_parsed = 0; g_num_packets_total = 0;
+  g_last_update_millis = 0;
+
   RANGE_RIGHT_INIT = 0;
   RANGE_LEFT_INIT  = 1e20;
 

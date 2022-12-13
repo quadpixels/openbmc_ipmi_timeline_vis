@@ -36,7 +36,7 @@ TEST(PcapAnalyzerTest, ParseMessageHeaderTest) {
     stream.offset = 4;
     TypeContainer tc = ParseOneSignature("a(yv)");
     // Should not crash
-    DBusType val = ParseType(MessageEndian::LITTLE, &stream, tc);
+    DBusType val = ParseType(MessageEndian::LITTLE, &stream, tc).value();
     ASSERT_TRUE(std::holds_alternative<DBusContainer>(val));
     DBusContainer array = std::get<DBusContainer>(val);
     ASSERT_EQ(array.values.size(), 5); // o, s, s, g, s

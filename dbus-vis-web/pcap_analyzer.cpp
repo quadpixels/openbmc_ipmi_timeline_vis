@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -212,9 +213,10 @@ void FixedHeader::Print() {
 		cookie);
 }
 
-TypeContainer do_ParseSignature(const std::string& sig, int& idx) {
+std::optional<TypeContainer> do_ParseSignature(const std::string& sig, int& idx) {
 	TypeContainer ret;
 	char ch = sig[idx];
+	std::optional<TypeContainer> s;
 	switch (ch) {
 		case int(DBusDataType::BYTE):
 		case int(DBusDataType::BOOLEAN):
@@ -236,13 +238,17 @@ TypeContainer do_ParseSignature(const std::string& sig, int& idx) {
 		case int(DBusDataType::ARRAY):
 			ret.type = DBusDataType::ARRAY;
 			idx ++;
-			ret.members.push_back(do_ParseSignature(sig, idx));
+			s = do_ParseSignature(sig, idx);
+			if (s.has_value())
+				ret.members.push_back(s.value());
 			break;
 		case '(':
 			ret.type = DBusDataType::STRUCT;
 			idx ++;
 			while (sig.at(idx) != ')') {
-				ret.members.push_back(do_ParseSignature(sig, idx));
+				s = do_ParseSignature(sig, idx);
+				if (s.has_value())
+					ret.members.push_back(s.value());
 			}
 			idx ++;
 			break;
@@ -250,13 +256,15 @@ TypeContainer do_ParseSignature(const std::string& sig, int& idx) {
 			ret.type = DBusDataType::DICT_ENTRY;
 			idx ++;
 			while (sig.at(idx) != '}') {
-				ret.members.push_back(do_ParseSignature(sig, idx));
+				s = do_ParseSignature(sig, idx);
+				if (s.has_value())
+					ret.members.push_back(s.value());
 			}
 			idx ++;
 			break;
 		default: {
 			printf("Signature %c in %s not implemented\n", ch, sig.c_str());
-			throw std::runtime_error("signature not implemented");
+			return std::nullopt;
 		}
 	}
 	return ret;
@@ -264,9 +272,13 @@ TypeContainer do_ParseSignature(const std::string& sig, int& idx) {
 
 TypeContainer ParseOneSignature(const std::string& sig, int* out_idx) {
 	int idx = 0;
+	TypeContainer ret;
 	if (out_idx) { idx = *out_idx; }
-	TypeContainer ret = do_ParseSignature(sig, idx);
-	if (out_idx) { *out_idx = idx; }
+	std::optional<TypeContainer> s = do_ParseSignature(sig, idx);
+	if (s.has_value()) {
+		ret = s.value();
+		if (out_idx) { *out_idx = idx; }
+	}
 	return ret;
 }
 
@@ -280,11 +292,12 @@ std::vector<TypeContainer> ParseSignatures(const std::string& sig) {
 }
 
 DBusMessageFields ParseFields(MessageEndian endian, AlignedStream* stream) {
-	TypeContainer sig = ParseOneSignature("a(yv)");
-	DBusContainer fields = std::get<DBusContainer>(ParseContainer(endian, stream, sig));
-	stream->Align(TypeContainer(DBusDataType::STRUCT));
-
 	DBusMessageFields ret;
+	TypeContainer sig = ParseOneSignature("a(yv)");
+	std::optional<DBusType> fields_container = ParseContainer(endian, stream, sig);
+	if (!fields_container.has_value()) return ret;
+	DBusContainer fields = std::get<DBusContainer>(fields_container.value());
+	stream->Align(TypeContainer(DBusDataType::STRUCT));
 
 	// fields is a(yv), v is (yv)
 	for (const std::variant<DBusVariant, DBusContainer>& v : fields.values) {
@@ -349,10 +362,11 @@ bool ParseHeaderAndBody(const unsigned char* data, int len, FixedHeader* fixed_o
 
 		std::vector<TypeContainer> tcs = ParseSignatures(sig);
 		for (const auto& tc : tcs) {
-			try {
-				body_out->push_back(ParseType(fixed.endian, &s, tc));
-			} catch (const std::exception& e) {
-				;  // TODO: Mark this packet as partially parsed due to it being truncated
+			std::optional<DBusType> dt = ParseType(fixed.endian, &s, tc);
+			if (dt.has_value()) {
+				body_out->push_back(dt.value());
+			} else {
+				break; // TODO: Mark this packet as partially parsed due to it being truncated
 			}
 		}
 	}
@@ -360,10 +374,14 @@ bool ParseHeaderAndBody(const unsigned char* data, int len, FixedHeader* fixed_o
 }
 
 // Parse fixed-size DBus types (byte, boolean, [u]int16, [u]int32, [u]int64, double, fd)
-DBusVariant ParseFixed(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc) {
+std::optional<DBusVariant> ParseFixed(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc) {
 	DBusVariant ret;
 	stream->Align(tc);
-	std::vector<uint8_t> bytes = stream->Take(tc);
+	std::optional<std::vector<uint8_t>> b = stream->Take(tc);
+	if (!b.has_value()) {
+		return std::nullopt;
+	}
+	std::vector<uint8_t> bytes = b.value();
 	switch (tc.type) {
 		case DBusDataType::BYTE: {
 			ret = uint8_t(bytes[0]);
@@ -436,17 +454,19 @@ DBusVariant ParseFixed(MessageEndian endian, AlignedStream* stream, const TypeCo
 
 DBusContainer ParseArray(MessageEndian endian, AlignedStream* stream, const std::vector<TypeContainer>& members) {
 	DBusContainer ret;
-	uint32_t len = std::get<uint32_t>(ParseFixed(endian, stream,
-		TypeContainer(DBusDataType::UINT32)));
+	std::optional<DBusVariant> tmp = ParseFixed(endian, stream, TypeContainer(DBusDataType::UINT32));
+	if (!tmp.has_value()) return ret;
+	uint32_t len = std::get<uint32_t>(tmp.value());
 	stream->Align(TypeContainer(DBusDataType::ARRAY));
 	int offset_start = stream->offset;
 	bool done = false;
 	while (!done && stream->offset < offset_start + len) {
 		for (const TypeContainer& tc : members) {
 			int offset = stream->offset;
-			try {
-				ret.values.push_back(ParseType(endian, stream, tc));
-			} catch (const std::exception& e) {  // Array is parsed on an "as much as possible" basis
+			std::optional<DBusType> dt = ParseType(endian, stream, tc);
+			if (dt.has_value()) {
+				ret.values.push_back(dt.value());
+			} else {  // Array is parsed on an "as much as possible" basis
 				stream->offset = offset;
 				done = true;
 				break;
@@ -456,17 +476,20 @@ DBusContainer ParseArray(MessageEndian endian, AlignedStream* stream, const std:
 	return ret;
 }
 
-DBusContainer ParseStruct(MessageEndian endian, AlignedStream* stream, const std::vector<TypeContainer>& members) {
+std::optional<DBusContainer> ParseStruct(MessageEndian endian, AlignedStream* stream, const std::vector<TypeContainer>& members) {
 	DBusContainer ret;
 	// Align
 	stream->Align(TypeContainer(DBusDataType::STRUCT));
 	for (const TypeContainer& tc : members) {
-		ret.values.push_back(ParseType(endian, stream, tc));
+		std::optional<DBusType> dt = ParseType(endian, stream, tc);
+		if (dt.has_value())
+			ret.values.push_back(dt.value());
+		else return std::nullopt;
 	}
 	return ret;
 }
 
-DBusVariant ParseString(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig) {
+std::optional<DBusVariant> ParseString(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig) {
 	int size = 0;
 	TypeContainer string_size_ty;
 	switch (sig.type) {
@@ -478,7 +501,9 @@ DBusVariant ParseString(MessageEndian endian, AlignedStream* stream, const TypeC
 			assert(0);
 		}
 	}
-	DBusVariant v = ParseFixed(endian, stream, string_size_ty);
+	std::optional<DBusVariant> f = ParseFixed(endian, stream, string_size_ty);
+	if (!f.has_value()) return std::nullopt;
+	DBusVariant v = f.value();
 	if (std::holds_alternative<uint32_t>(v)) {
 		size = int(std::get<uint32_t>(v));
 	} else if (std::holds_alternative<uint8_t>(v)) {
@@ -486,7 +511,11 @@ DBusVariant ParseString(MessageEndian endian, AlignedStream* stream, const TypeC
 	}
 	std::string ret = "";
 	if (size == 0) { return ret; } // return ""; returns an empty DBusVariant.
-	for (int i=0; i<size; i++) { ret.push_back(stream->TakeOneByte()); }
+	for (int i=0; i<size; i++) { 
+		std::optional<uint8_t> b = stream->TakeOneByte();
+		if (!b.has_value()) return ret;
+		else ret.push_back(b.value());
+	}
 	stream->TakeOneByte(); // Take one extra byte if the string is non-empty.
 	if (sig.type == DBusDataType::OBJECT_PATH) {
 		object_path op;
@@ -496,21 +525,24 @@ DBusVariant ParseString(MessageEndian endian, AlignedStream* stream, const TypeC
 	return ret;
 }
 
-DBusType ParseVariant(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig) {
-	DBusVariant vs = ParseString(endian, stream, TypeContainer(DBusDataType::SIGNATURE));
+std::optional<DBusType> ParseVariant(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig) {
+	std::optional<DBusVariant> tmp = ParseString(endian, stream, TypeContainer(DBusDataType::SIGNATURE));
+	if (!tmp.has_value()) return std::nullopt;
+	DBusVariant vs = tmp.value();
 	std::string s;
 	if (std::holds_alternative<std::string>(vs)) {
 		s = std::get<std::string>(vs);
 	} else if (std::holds_alternative<object_path>(vs)) {
 		s = std::get<object_path>(vs).str;
 	} else {
-		throw std::runtime_error("bad variant");
+		return std::nullopt;
 	}
 	TypeContainer tc = ParseOneSignature(s);
+	if (!tc.IsValid()) return std::nullopt;
 	return ParseType(endian, stream, tc);
 }
 
-DBusType ParseContainer(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig) {
+std::optional<DBusType> ParseContainer(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig) {
 	switch (sig.type) {
 		case DBusDataType::ARRAY:
 			return ParseArray(endian, stream, sig.members);
@@ -528,7 +560,7 @@ DBusType ParseContainer(MessageEndian endian, AlignedStream* stream, const TypeC
 	}
 }
 
-DBusType ParseType(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc) {
+std::optional<DBusType> ParseType(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc) {
 	if (IsFixedType(tc.type)) {
 		return ParseFixed(endian, stream, tc);
 	} else if (IsContainerType(tc.type)) {

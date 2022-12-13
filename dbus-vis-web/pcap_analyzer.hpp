@@ -3,8 +3,8 @@
 
 #include <cassert>
 #include <cstdint>
-#include <exception>
 #include <iostream>
+#include <optional>
 #include <map>
 #include <sstream>
 #include <string>
@@ -166,6 +166,10 @@ struct TypeContainer {
     do_Print(ss);
     return ss.str();
   }
+
+  bool IsValid() const {
+    return type != DBusDataType::INVALID;
+  }
 };
 
 // The variable part in a header, with "a(yv)" type
@@ -184,15 +188,16 @@ struct AlignedStream {
   std::vector<uint8_t>* buf;
   int offset = 0;
 
-  uint8_t TakeOneByte() {
+  std::optional<uint8_t> TakeOneByte() {
+    if (Ended()) return std::nullopt;
     return buf->at(offset++);
   }
 
-  std::vector<uint8_t> Take(const TypeContainer& tc) {
-    if (Ended()) {
-      throw std::out_of_range("AlignedStream has ended");
-    }
+  std::optional<std::vector<uint8_t>> Take(const TypeContainer& tc) {
     std::vector<uint8_t> ret;
+    if (Ended()) {
+      return std::nullopt;
+    }
     switch (tc.type) {
       case DBusDataType::BYTE:
       case DBusDataType::SIGNATURE:
@@ -270,12 +275,12 @@ struct AlignedStream {
 };
 
 // Parsing
-DBusVariant ParseFixed(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc);
-DBusType ParseType(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc);
+std::optional<DBusVariant> ParseFixed(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc);
+std::optional<DBusType> ParseType(MessageEndian endian, AlignedStream* stream, const TypeContainer& tc);
 TypeContainer ParseOneSignature(const std::string& sig, int* out_idx=nullptr);
 std::vector<TypeContainer> ParseSignatures(const std::string& sig);
 void ProcessByteArray(const std::vector<uint8_t>& buf);
-DBusType ParseContainer(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig);
+std::optional<DBusType> ParseContainer(MessageEndian endian, AlignedStream* stream, const TypeContainer& sig);
 MessageHeaderType ToMessageHeaderType(int x);
 void PrintDBusType(const DBusType& x);
 std::string DBusTypeToJSON(const DBusType& x);

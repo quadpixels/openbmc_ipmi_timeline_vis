@@ -694,6 +694,7 @@ class TimelineView {
   OnMouseWheel(event) {
     event.preventDefault();
     const v = this;
+    v.IsCanvasDirty = true;
 
     let is_mouse_on_horizontal_scrollbar = false;
     if (this.MouseState.y > 0 && this.MouseState.y < TOP_HORIZONTAL_SCROLLBAR_HEIGHT)

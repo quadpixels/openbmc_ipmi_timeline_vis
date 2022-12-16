@@ -1834,6 +1834,41 @@ class IPMITimelineView extends TimelineView {
 };
 
 class DBusTimelineView extends TimelineView {
+  do_PayloadToStringList(obj, indent, tmp) {
+    const LINE_WIDTH = 80; // Split text if too long
+    let sp = " ";
+    for (let i=0; i<indent-2; i++) { sp += "  "; }
+    if (typeof(obj) == "object") {
+      for (let i=0; i<obj.length; i++) {
+        this.do_PayloadToStringList(obj[i], indent+1, tmp);
+      }
+    } else {
+      let os = obj.toString();
+      for (let i=0; i<os.length; i+=LINE_WIDTH) {
+        tmp.value.push(sp + os.slice(i, i+LINE_WIDTH));
+      }
+    }
+  }
+
+  PayloadToStringList(payload) {
+    let ret = [];
+    for (let i=0; i<payload.length; i++) {
+      let tmp = { value:[] }
+      this.do_PayloadToStringList(payload[i], 0, tmp);
+      for (let j=0; j<tmp.value.length; j++) {
+        let line = "";
+        if (j == 0) {
+          line = i + ": ";
+        } else {
+          line += "   ";
+        }
+        line += tmp.value[j];
+        ret.push(line);
+      }
+    }
+    return ret;
+  }
+
   RenderToolTip(
       ctx, theHoveredReq, theHoveredInterval, toFixedPrecision, height) {
     if (theHoveredReq == undefined) {
@@ -1849,6 +1884,7 @@ class DBusTimelineView extends TimelineView {
     let path = theHoveredReq[5];
     let iface = theHoveredReq[6];
     let member = theHoveredReq[7];
+    let payload_strings = this.PayloadToStringList(theHoveredReq[IDX_PAYLOAD]);
 
     let t0 = theHoveredInterval[0];
     let t1 = theHoveredInterval[1];
@@ -1860,6 +1896,10 @@ class DBusTimelineView extends TimelineView {
     labels.push('Path        : ' + path);
     labels.push('Interface   : ' + iface);
     labels.push('Member      : ' + member);
+
+    for (let i=0; i<payload_strings.length; i++) {
+      labels.push(payload_strings[i]);
+    }
 
     let w = 1, h = LINE_SPACING * labels.length + 2 * PAD;
     for (let i = 0; i < labels.length; i++) {

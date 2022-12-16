@@ -232,6 +232,7 @@ function OnDBusPCapInfo(num_packets) {
 // Used in OnNewDBusMessage and Preprocess_DBusPcap
 const IDX_TIMESTAMP_END = 8;
 const IDX_MC_OUTCOME = 9;  // Outcome of method call
+const IDX_PAYLOAD = 10;  // Payload of method call and serial
 
 // Called by CXX
 function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destination, path, iface, member, body) {
@@ -261,7 +262,7 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
       g_timestamps.push(timestamp * 1000);
       let entry = [
         'sig', timestamp * 1000, serial, sender, destination, path, iface, member,
-        timestamp_end, [] // TODO: Add payload
+        timestamp_end, '', body_parsed // TODO: Add payload
       ];
       g_preproc.push(entry);
       break;
@@ -269,7 +270,7 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
     case 1: { // Method call
       let entry = [
         'mc', timestamp * 1000, serial, sender, destination, path, iface, member,
-        timestamp * 1000, [], [], '' // TODO: fill in packet
+        timestamp * 1000, '', body_parsed, '' // TODO: fill in packet
       ];
 
       if (iface == 'xyz.openbmc_project.Ipmi.Server' && member == 'execute' && body_parsed != undefined) {

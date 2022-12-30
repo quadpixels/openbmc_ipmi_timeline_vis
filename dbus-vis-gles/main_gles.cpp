@@ -33,11 +33,14 @@ public:
   // Shader Program = VS + FS.
   unsigned int shader_program;
   HelloTriangleScene() {
+    const float R0 = 1.0f, G0 = 0.4f, B0 = 0.4f;
+    const float R1 = 0.4f, G1 = 1.0f, B1 = 0.4f;
+    const float R2 = 0.4f, G2 = 0.4f, B2 = 1.0f;
     // 1. Buffer
     constexpr float vertices0[] = {
-      -0.9f, -0.5f, 0.0f,
-      -0.1f, -0.5f, 0.0f,
-      -0.5f,  0.5f, 0.0f,
+      -0.9f, -0.5f, 0.0f, R0, G0, B0,
+      -0.1f, -0.5f, 0.0f, R1, G1, B1,
+      -0.5f,  0.5f, 0.0f, R2, G2, B2,
     };
 
     glGenBuffers(1, &vbo_solid);
@@ -46,12 +49,12 @@ public:
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     constexpr float vertices1[] = {
-      0.9f, -0.5f, 0.0f,
-      0.1f, -0.5f, 0.0f,
-      0.1f, -0.5f, 0.0f,
-      0.5f,  0.5f, 0.0f,
-      0.5f,  0.5f, 0.0f,
-      0.9f, -0.5f, 0.0f,
+      0.9f, -0.5f, 0.0f, R0, G0, B0,
+      0.1f, -0.5f, 0.0f, R1, G1, B1,
+      0.1f, -0.5f, 0.0f, R1, G1, B1,
+      0.5f,  0.5f, 0.0f, R2, G2, B2,
+      0.5f,  0.5f, 0.0f, R2, G2, B2,
+      0.9f, -0.5f, 0.0f, R0, G0, B0,
     };
     glGenBuffers(1, &vbo_line);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_line);
@@ -96,13 +99,17 @@ public:
     glUseProgram(shader_program);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo_solid);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), NULL);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), NULL);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));
     glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo_line);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), NULL);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), NULL);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));
     glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
     glLineWidth(2);
     glDrawArrays(GL_LINES, 0, 6);
     

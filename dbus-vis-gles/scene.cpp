@@ -263,3 +263,29 @@ void RotatingCubeScene::Render() {
   glUseProgram(0);
   MyCheckError("RotatingCubeScene Render");
 }
+
+OneChunkScene::OneChunkScene() {
+  chunk.LoadDefault();
+  Chunk* null_neighs[26] = {};
+  chunk.BuildBuffers(null_neighs);
+  MyCheckError("Chunk Build Default");
+
+  projection_matrix = glm::perspective(60.0f*3.14159f/180.0f, WIN_W*1.0f/WIN_H, 0.1f, 499.0f);
+}
+
+void OneChunkScene::Render() {
+  glEnable(GL_DEPTH_TEST);
+  glUseProgram(Chunk::shader_program);
+  unsigned v_loc = glGetUniformLocation(Chunk::shader_program, "V");
+  unsigned p_loc = glGetUniformLocation(Chunk::shader_program, "P");
+  glm::mat4 V = camera.GetViewMatrix();
+  glm::mat4 P = projection_matrix;
+  glUniformMatrix4fv(v_loc, 1, false, &V[0][0]);
+  glUniformMatrix4fv(p_loc, 1, false, &P[0][0]);
+  chunk.Render();
+  MyCheckError("Chunk render");
+}
+
+void OneChunkScene::Update(float secs) {
+
+}

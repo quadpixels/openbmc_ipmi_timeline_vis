@@ -13,3 +13,11 @@ public:
   void Update(float);
   glm::vec3 pos, lookdir, up;
 };
+
+class DirectionalLight {
+public:
+  glm::mat4 P, V;
+  glm::vec3 dir, pos;
+  DirectionalLight();
+  DirectionalLight(const glm::vec3& dir, const glm::vec3& pos);
+};

@@ -15,6 +15,7 @@ int WIN_W = 1024, WIN_H = 640;
 
 Scene* g_curr_scene;
 HelloTriangleScene* g_hellotriangle;
+OneChunkScene*      g_onechunk;
 PaletteScene*       g_paletteview;
 RotatingCubeScene*  g_rotating_cube;
 
@@ -40,6 +41,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
   case GLFW_KEY_1: g_curr_scene = g_hellotriangle; break;
   case GLFW_KEY_2: g_curr_scene = g_paletteview; break;
   case GLFW_KEY_3: g_curr_scene = g_rotating_cube; break;
+  case GLFW_KEY_4: g_curr_scene = g_onechunk; break;
   default: break;
   }
 }
@@ -48,6 +50,10 @@ void MyInit() {
   g_hellotriangle = new HelloTriangleScene();
   g_paletteview = new PaletteScene();
   g_rotating_cube = new RotatingCubeScene();
+  g_onechunk = new OneChunkScene();
+
+  Chunk::shader_program = BuildShaderProgram("shaders/vert_mvp_palette.vs", "shaders/hellotriangle.fs");
+  MyCheckError("Build Chunk's shader program");
 }
 
 void emscriptenLoop() {

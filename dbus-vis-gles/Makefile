@@ -1,5 +1,8 @@
 all: main_gles
 
+chunk.o: chunk.cpp
+	g++ $< -c -o $@
+
 camera.o: camera.cpp
 	g++ $< -c -o $@
 
@@ -9,7 +12,7 @@ util.o: util.cpp
 scene.o: scene.cpp
 	g++ $< -c -o $@
 
-main_gles: main_gles.cpp util.o scene.o camera.o
+main_gles: main_gles.cpp util.o scene.o camera.o chunk.o
 	g++ $^ -o main_gles -lglfw -lGLESv2
 
 clean:

@@ -4,8 +4,9 @@
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
 
-#include "util.hpp"
 #include "camera.hpp"
+#include "chunk.hpp"
+#include "util.hpp"
 
 class Scene {
 public:
@@ -44,6 +45,20 @@ public:
   std::vector<glm::mat3> orientations;
   Camera camera;
   RotatingCubeScene();
+  void Render();
+  void Update(float secs);
+};
+
+class OneChunkScene : public Scene {  // Show 1 Vox
+public:
+  unsigned int vbo;
+  unsigned int ebo;
+  unsigned int shader_program;
+  glm::mat4 projection_matrix;
+  Camera camera;
+  DirectionalLight directional_light;
+  Chunk chunk;
+  OneChunkScene();
   void Render();
   void Update(float secs);
 };

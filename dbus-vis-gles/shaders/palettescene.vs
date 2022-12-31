@@ -1,4 +1,4 @@
-#version 100
+#version 300 es
 
 in vec2  aPos;
 in float colorIdx;

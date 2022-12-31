@@ -1,4 +1,4 @@
-#version 100
+#version 300 es
 
 in vec3 aPos;
 in vec3 aColor;

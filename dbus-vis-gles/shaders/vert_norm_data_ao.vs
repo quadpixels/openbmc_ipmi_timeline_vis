@@ -1,13 +1,10 @@
-#version 100
+#version 300 es
 
 in vec3 position;
-in float normal_idx;
-in float color_idx;
-in float ao;
+in vec3 properties;  // normal_idx + color_idx + ao
 
-out vec3 vert_color;
+out vec4 vert_color;
 out vec3 normal;
-out vec4 frag_pos_lightspace;
 
 uniform mat4 M;
 uniform mat4 V;
@@ -50,20 +47,15 @@ vec3 default_palette[256] = vec3[](
     vec3(0.733,0.733,0.733),vec3(0.667,0.667,0.667),vec3(0.533,0.533,0.533),vec3(0.467,0.467,0.467),vec3(0.333,0.333,0.333),vec3(0.267,0.267,0.267),vec3(0.133,0.133,0.133),vec3(0.067,0.067,0.067)
 );
 
-// @.@
 vec3 default_normals[6] = vec3[](
-  vec3(0, 0, 1), vec3(0, 0, -1),
-  vec3(1, 0, 0), vec3(-1, 0, 0),
-  vec3(0, 1, 0), vec3(0, -1, 0)
+    vec3(0, 0, 1), vec3(0, 0, -1),
+    vec3(1, 0, 0), vec3(-1, 0, 0),
+    vec3(0, 1, 0), vec3(0, -1, 0)
 );
 
 void main()
 {
-  float occ = 1.0f - ao * 0.2f;
   gl_Position = P * V * M * vec4(position, 1.0f);
-  vert_color = default_palette[int(color_idx)] * occ;
-  normal     = default_normals[int(normal_idx)];
-
-  vec3 frag = vec3(M * vec4(position, 1.0f)); 
-  frag_pos_lightspace = lightPV * vec4(frag, 1.0);
+  vert_color = vec4(default_palette[int(properties.y)], 1.0f);
+  normal     = default_normals[int(properties.x)];
 }

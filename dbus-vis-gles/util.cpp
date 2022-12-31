@@ -67,7 +67,7 @@ unsigned int BuildShaderProgram(const char* vs_filename, const char* fs_filename
   MyCheckError("Compile VS");
   MyCheckShaderCompileStatus(vertex_shader, "Vertex shader");
 
-  std::string fs_src = ReadFileIntoString("shaders/hellotriangle.fs");
+  std::string fs_src = ReadFileIntoString(fs_filename);
   const char* fs_src_data = fs_src.data();
   printf("FS source %s: %zu bytes\n", fs_filename, fs_src.size());
   fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);

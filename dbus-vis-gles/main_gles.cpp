@@ -52,7 +52,7 @@ void MyInit() {
   g_rotating_cube = new RotatingCubeScene();
   g_onechunk = new OneChunkScene();
 
-  Chunk::shader_program = BuildShaderProgram("shaders/vert_mvp_palette.vs", "shaders/hellotriangle.fs");
+  Chunk::shader_program = BuildShaderProgram("shaders/vert_norm_data_ao.vs", "shaders/vert_norm_data_ao.fs");
   MyCheckError("Build Chunk's shader program");
 }
 

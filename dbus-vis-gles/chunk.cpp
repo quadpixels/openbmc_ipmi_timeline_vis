@@ -353,17 +353,9 @@ void Chunk::Render(const glm::mat4& M) {
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (GLvoid*)0);
   glEnableVertexAttribArray(0);
 
-  // Normal idx
-  //glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, stride, (GLvoid*)(3*sizeof(GLfloat)));
-  //glEnableVertexAttribArray(1);
-
-  // Data
-  glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, stride, (GLvoid*)(4*sizeof(GLfloat)));
+  // Normal idx + Data + AO Index
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (GLvoid*)(3*sizeof(GLfloat)));
   glEnableVertexAttribArray(1);
-
-  // AO Index
-  //glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (GLvoid*)(5*sizeof(GLfloat)));
-  //glEnableVertexAttribArray(3);
 
   glDrawArrays(GL_TRIANGLES, 0, tri_count * 3);
   glBindBuffer(GL_ARRAY_BUFFER, 0);

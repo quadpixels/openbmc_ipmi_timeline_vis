@@ -1,9 +1,10 @@
-#version 100
+#version 300 es
 
 in vec3 position;
+in vec3 normal;
 in float colorIdx;
 
-out vec4 vertexColor;
+out vec3 vertexColor;
 
 uniform mat4 M;
 uniform mat4 V;
@@ -46,5 +47,5 @@ vec3 default_palette[256] = vec3[](
 
 void main() {
   gl_Position = P * V * M * vec4(position, 1.0f);
-  vertexColor = vec4(default_palette[int(colorIdx)], 1.0f);
+  vertexColor = default_palette[int(colorIdx)];
 }

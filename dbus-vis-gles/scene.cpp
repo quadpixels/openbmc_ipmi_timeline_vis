@@ -276,12 +276,17 @@ OneChunkScene::OneChunkScene() {
 void OneChunkScene::Render() {
   glEnable(GL_DEPTH_TEST);
   glUseProgram(Chunk::shader_program);
+
   unsigned v_loc = glGetUniformLocation(Chunk::shader_program, "V");
   unsigned p_loc = glGetUniformLocation(Chunk::shader_program, "P");
+  unsigned dir_light_loc = glGetUniformLocation(Chunk::shader_program, "dir_light");
   glm::mat4 V = camera.GetViewMatrix();
   glm::mat4 P = projection_matrix;
   glUniformMatrix4fv(v_loc, 1, false, &V[0][0]);
   glUniformMatrix4fv(p_loc, 1, false, &P[0][0]);
+  glUniform3f(dir_light_loc, directional_light.dir.x,
+                             directional_light.dir.y,
+                             directional_light.dir.z);
   chunk.Render();
   MyCheckError("Chunk render");
 }

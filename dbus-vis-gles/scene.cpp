@@ -2,6 +2,9 @@
 
 #include "util.hpp"
 #include "scene.hpp"
+#include <glm/gtc/matrix_transform.hpp>
+
+extern int WIN_W, WIN_H;
 
 HelloTriangleScene::HelloTriangleScene() {
   const float R0 = 1.0f, G0 = 0.4f, B0 = 0.4f;
@@ -111,4 +114,86 @@ void PaletteScene::Render() {
   glDisableVertexAttribArray(1);
   glUseProgram(0);
   MyCheckError("Render");
+}
+
+RotatingCubeScene::RotatingCubeScene() {
+  const float L = 10.0f;
+  const float verts[] = {
+    // 下层
+    -L, -L, -L, 10,
+    -L, -L,  L, 20,
+     L, -L,  L, 30,
+     L, -L, -L, 40,
+
+    // 上层
+    -L, L, -L, 50,
+    -L, L,  L, 60,
+     L, L,  L, 70,
+     L, L, -L, 80,
+  };
+  glGenBuffers(1, &vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+
+  const int idxes[] = {
+    // 下层
+    0,3,1, 3,2,1,
+    // 四周
+    4,0,5, 5,0,1, 6,5,1, 1,2,6, 6,2,3, 7,6,3, 0,4,7, 7,3,0,
+    // 上层
+    7,4,5, 7,5,6
+  };
+  glGenBuffers(1, &ebo);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idxes), idxes, GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+  shader_program = BuildShaderProgram("shaders/vert_mvp_palette.vs", "shaders/hellotriangle.fs");
+
+  projection_matrix = glm::perspective(60.0f*3.14159f/180.0f, WIN_W*1.0f/WIN_H, 0.1f, 499.0f);
+  model_matrix = glm::mat4(1);
+
+  MyCheckError("RotatingCubeScene init");
+}
+
+void RotatingCubeScene::Update(float secs) {
+  const float theta = secs * 60;
+  model_matrix = RotateAroundLocalAxis(model_matrix,
+    glm::vec3(1,0,0), theta);
+  model_matrix = RotateAroundGlobalAxis(model_matrix,
+    glm::normalize(glm::vec3(0,1,1)), theta);
+}
+
+void RotatingCubeScene::Render() {
+  glEnable(GL_DEPTH_TEST);
+  glUseProgram(shader_program);
+  
+  unsigned m_loc = glGetUniformLocation(shader_program, "M");
+  unsigned v_loc = glGetUniformLocation(shader_program, "V");
+  unsigned p_loc = glGetUniformLocation(shader_program, "P");
+  glm::mat4 M = model_matrix;
+  glm::mat4 V = camera.GetViewMatrix();
+  glm::mat4 P = projection_matrix;
+  glUniformMatrix4fv(m_loc, 1, false, &M[0][0]);
+  glUniformMatrix4fv(v_loc, 1, false, &V[0][0]);
+  glUniformMatrix4fv(p_loc, 1, false, &P[0][0]);
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 4*sizeof(float), NULL);
+  glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)(3*sizeof(float)));
+  glEnableVertexAttribArray(0);
+  glEnableVertexAttribArray(1);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+  
+  glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  glDisableVertexAttribArray(0);
+  glDisableVertexAttribArray(1);
+  glUseProgram(0);
+  MyCheckError("RotatingCubeScene Render");
 }

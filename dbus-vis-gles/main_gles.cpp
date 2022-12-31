@@ -11,11 +11,16 @@
 GLFWwindow* g_window;
 double g_last_secs = 0;
 
-const int WIN_W = 1024, WIN_H = 640;
+int WIN_W = 1024, WIN_H = 640;
 
 Scene* g_curr_scene;
 HelloTriangleScene* g_hellotriangle;
 PaletteScene*       g_paletteview;
+RotatingCubeScene*  g_rotating_cube;
+
+void Update(float delta_secs) {
+  g_curr_scene->Update(delta_secs);
+}
 
 void Render() {
   glViewport(0, 0, WIN_W, WIN_H);
@@ -27,20 +32,28 @@ void Render() {
 }
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-  if (key == GLFW_KEY_ESCAPE) {
+  switch (key) {
+  case GLFW_KEY_ESCAPE: {
     printf("Done.\n");
     exit(0);
+  }
+  case GLFW_KEY_1: g_curr_scene = g_hellotriangle; break;
+  case GLFW_KEY_2: g_curr_scene = g_paletteview; break;
+  case GLFW_KEY_3: g_curr_scene = g_rotating_cube; break;
+  default: break;
   }
 }
 
 void MyInit() {
   g_hellotriangle = new HelloTriangleScene();
   g_paletteview = new PaletteScene();
+  g_rotating_cube = new RotatingCubeScene();
 }
 
 void emscriptenLoop() {
   double secs = glfwGetTime();
   glfwPollEvents();
+  Update(secs - g_last_secs);
   Render();
   glfwSwapBuffers(g_window);
   g_last_secs = secs;
@@ -86,10 +99,6 @@ int main(int argc, char** argv) {
 
   MyInit();
   g_curr_scene = g_hellotriangle;
-  if (argc > 1) {
-    std::string argv1(argv[1]);
-    if (argv1 == "paletteview") g_curr_scene = g_paletteview;
-  }
 
   #ifndef __EMSCRIPTEN__
   while (!glfwWindowShouldClose(g_window)) {

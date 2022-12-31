@@ -3,6 +3,8 @@
 
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 std::string ReadFileIntoString(const char* file_name) {
   std::string ret;
@@ -83,4 +85,16 @@ unsigned int BuildShaderProgram(const char* vs_filename, const char* fs_filename
   glDeleteShader(vertex_shader);
   glDeleteShader(fragment_shader);
   return shader_program;
+}
+
+glm::mat3 RotateAroundLocalAxis(const glm::mat3& orientation, const glm::vec3& axis, const float deg) {
+  glm::mat4 o(orientation);
+  o = glm::rotate(o, deg*3.14159f/180.0f, glm::inverse(orientation)*axis);
+  return glm::mat3(o);
+}
+
+glm::mat3 RotateAroundGlobalAxis(const glm::mat3& orientation, const glm::vec3& axis, const float deg) {
+  glm::mat4 o(orientation);
+  o = glm::rotate(o, deg*3.14159f/180.0f, axis);
+  return glm::mat3(o);
 }

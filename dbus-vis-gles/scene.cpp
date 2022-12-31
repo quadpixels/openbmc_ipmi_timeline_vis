@@ -295,6 +295,21 @@ OneChunkScene::OneChunkScene() {
   MyCheckError("Chunk Build Default");
 
   projection_matrix = glm::perspective(60.0f*3.14159f/180.0f, WIN_W*1.0f/WIN_H, 0.1f, 499.0f);
+
+  // Dummy (all 1.0) depth buffer
+  glGenTextures(1, &depth_buffer_tex);
+  glBindTexture(GL_TEXTURE_2D, depth_buffer_tex);
+  const int W = 512;
+  unsigned short *data2 = new unsigned short[W*W];
+  for (int i=0; i<W*W; i++) {
+    data2[i] = 65535;
+  }
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, W, W, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, data2);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void OneChunkScene::Render() {
@@ -363,7 +378,7 @@ TextureScene::TextureScene() {
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idxes), idxes, GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-  // 2. Texture
+  // 2.1. a color Texture
   glGenTextures(1, &tex);
   glBindTexture(GL_TEXTURE_2D, tex);
 
@@ -386,6 +401,22 @@ TextureScene::TextureScene() {
 
   glBindTexture(GL_TEXTURE_2D, 0);
   MyCheckError("Generating texture for TextureScene.");
+
+  // 2.2. a Depth texture
+  // Dummy (all 1.0) depth buffer
+  glGenTextures(1, &depth_buffer_tex);
+  glBindTexture(GL_TEXTURE_2D, depth_buffer_tex);
+  const int W = 512;
+  unsigned short *data2 = new unsigned short[W*W];
+  for (int i=0; i<W*W; i++) {
+    data2[i] = i % 65535;
+  }
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, W, W, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, data2);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glBindTexture(GL_TEXTURE_2D, 0);
 
   // 3. FBO to draw to the screen.
   basic_fbo = new BasicFBO(WIN_W, WIN_H);
@@ -416,6 +447,10 @@ void TextureScene::Render() {
 
   glViewport(WIN_W/2, 0, WIN_W/2, WIN_H/2);
   glBindTexture(GL_TEXTURE_2D, basic_fbo->tex);
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+  glViewport(0, WIN_H/2, WIN_W/2, WIN_H/2);
+  glBindTexture(GL_TEXTURE_2D, depth_buffer_tex);
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);

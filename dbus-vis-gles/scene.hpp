@@ -56,6 +56,9 @@ public:
   unsigned int vbo;
   unsigned int ebo;
 
+  // For dummy texture resource
+  unsigned int depth_buffer_tex;
+
   unsigned int shader_program;
   glm::mat4 projection_matrix;
   Camera camera;
@@ -72,6 +75,7 @@ public:
   unsigned int vbo_tex;
   unsigned int ebo_tex;
   unsigned int tex; // The texture to be drawn
+  unsigned int depth_buffer_tex;
   unsigned int shader_program;
 
   BasicFBO* basic_fbo;

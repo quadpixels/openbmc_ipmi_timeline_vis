@@ -66,13 +66,16 @@ public:
   void Update(float secs);
 };
 
-class TextureScene : public Scene {  // Render something to a texture
+class TextureScene : public Scene {  // Render a texture AND an FBO onto the screen.
 public:
   // Draw texture to screen
   unsigned int vbo_tex;
   unsigned int ebo_tex;
   unsigned int tex; // The texture to be drawn
   unsigned int shader_program;
+
+  BasicFBO* basic_fbo;
+
   TextureScene();
   void Render();
   void Update(float secs);

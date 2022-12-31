@@ -6,6 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 extern int WIN_W, WIN_H;
+extern HelloTriangleScene* g_hellotriangle;
 
 HelloTriangleScene::HelloTriangleScene() {
   const float R0 = 1.0f, G0 = 0.4f, B0 = 0.4f;
@@ -344,10 +345,10 @@ TextureScene::TextureScene() {
   MyCheckError("build TextureScene shaders");
 
   float verts[] = {
-    -1,  1, 0, 0, 0,
-    -1, -1, 0, 0, 1,
-     1, -1, 0, 1, 1,
-     1,  1, 0, 1, 0,
+    -1,  1, 0, 0, 1,
+    -1, -1, 0, 0, 0,
+     1, -1, 0, 1, 0,
+     1,  1, 0, 1, 1,
   };
   glGenBuffers(1, &vbo_tex);
   glBindBuffer(GL_ARRAY_BUFFER, vbo_tex);
@@ -385,9 +386,19 @@ TextureScene::TextureScene() {
 
   glBindTexture(GL_TEXTURE_2D, 0);
   MyCheckError("Generating texture for TextureScene.");
+
+  // 3. FBO to draw to the screen.
+  basic_fbo = new BasicFBO(WIN_W, WIN_H);
 }
 
 void TextureScene::Render() {
+
+  {
+    basic_fbo->Bind();
+    g_hellotriangle->Render();
+    basic_fbo->Unbind();
+  }
+
   glBindBuffer(GL_ARRAY_BUFFER, vbo_tex);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_tex);
   glEnableVertexAttribArray(0);
@@ -400,9 +411,16 @@ void TextureScene::Render() {
   glUseProgram(shader_program);
 
   // To fix: segfault in /usr/lib/x86_64-linux-gnu/dri/zx_dri.so
+  glViewport(0, 0, WIN_W/2, WIN_H/2);
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+  glViewport(WIN_W/2, 0, WIN_W/2, WIN_H/2);
+  glBindTexture(GL_TEXTURE_2D, basic_fbo->tex);
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  glViewport(0, 0, WIN_W, WIN_H);
   MyCheckError("TextureScene Render");
 }
 

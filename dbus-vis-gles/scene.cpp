@@ -1,7 +1,8 @@
 #include <vector>
 
-#include "util.hpp"
+#include "rendertarget.hpp"
 #include "scene.hpp"
+#include "util.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 
 extern int WIN_W, WIN_H;
@@ -334,5 +335,77 @@ void OneChunkScene::Render() {
 }
 
 void OneChunkScene::Update(float secs) {
+
+}
+
+TextureScene::TextureScene() {
+  // 1. Shader, VBO, EBO
+  shader_program = BuildShaderProgram("shaders/simple_texture.vs", "shaders/simple_texture.fs");
+  MyCheckError("build TextureScene shaders");
+
+  float verts[] = {
+    -1,  1, 0, 0, 0,
+    -1, -1, 0, 0, 1,
+     1, -1, 0, 1, 1,
+     1,  1, 0, 1, 0,
+  };
+  glGenBuffers(1, &vbo_tex);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_tex);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  unsigned int idxes[] = {
+    0,1,3,  3,1,2
+  };
+  glGenBuffers(1, &ebo_tex);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_tex);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idxes), idxes, GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+  // 2. Texture
+  glGenTextures(1, &tex);
+  glBindTexture(GL_TEXTURE_2D, tex);
+
+  unsigned char* data = new unsigned char[4*WIN_W*WIN_H];
+  int idx = 0;
+  for (int y=0; y<WIN_H; y++) {
+    for (int x=0; x<WIN_W; x++) {
+      const unsigned char r = (unsigned char)(Lerp(0, 255, x*1.0f/(WIN_W-1)));
+      const unsigned char g = (unsigned char)(Lerp(0, 255, y*1.0f/(WIN_H-1)));
+      data[idx++] = r;
+      data[idx++] = g;
+      data[idx++] = 0;
+      data[idx++] = 255;
+    }
+  }
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WIN_W, WIN_H, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+  delete[] data;
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+  glBindTexture(GL_TEXTURE_2D, 0);
+  MyCheckError("Generating texture for TextureScene.");
+}
+
+void TextureScene::Render() {
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_tex);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_tex);
+  glEnableVertexAttribArray(0);
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(float)*5, 0);
+  glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(float)*5, (void*)(3*sizeof(float)));
+  
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, tex);
+  glUseProgram(shader_program);
+
+  // To fix: segfault in /usr/lib/x86_64-linux-gnu/dri/zx_dri.so
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  MyCheckError("TextureScene Render");
+}
+
+void TextureScene::Update(float secs) {
 
 }

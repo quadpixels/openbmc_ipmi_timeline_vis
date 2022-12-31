@@ -1,19 +1,24 @@
 all: main_gles
 
+CXXFLAGS=-g
+
+rendertarget.o: rendertarget.cpp
+	g++ $< -c $(CXXFLAGS) -o $@
+
 chunk.o: chunk.cpp
-	g++ $< -c -o $@
+	g++ $< -c $(CXXFLAGS) -o $@
 
 camera.o: camera.cpp
-	g++ $< -c -o $@
+	g++ $< -c $(CXXFLAGS) -o $@
 
 util.o: util.cpp
-	g++ $< -c -o $@
+	g++ $< -c $(CXXFLAGS) -o $@
 
 scene.o: scene.cpp
-	g++ $< -c -o $@
+	g++ $< -c $(CXXFLAGS) -o $@
 
-main_gles: main_gles.cpp util.o scene.o camera.o chunk.o
-	g++ $^ -o main_gles -lglfw -lGLESv2
+main_gles: main_gles.cpp util.o scene.o camera.o chunk.o rendertarget.o
+	g++ $^ $(CXXFLAGS) -o main_gles -lglfw -lGLESv2
 
 clean:
-	@for x in util.o scene.o main_gles; do [ -f $$x ] && rm -v $$x ; done
+	@for x in util.o scene.o rendertarget.o chunk.o camera.o main_gles; do [ -f $$x ] && rm -v $$x ; done

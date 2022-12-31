@@ -6,6 +6,7 @@
 
 #include "camera.hpp"
 #include "chunk.hpp"
+#include "rendertarget.hpp"
 #include "util.hpp"
 
 class Scene {
@@ -49,7 +50,7 @@ public:
   void Update(float secs);
 };
 
-class OneChunkScene : public Scene {  // Show 1 Vox
+class OneChunkScene : public Scene {  // Show 1 Vox Chunk
 public:
   // For backdrop
   unsigned int vbo;
@@ -61,6 +62,18 @@ public:
   DirectionalLight directional_light;
   Chunk chunk;
   OneChunkScene();
+  void Render();
+  void Update(float secs);
+};
+
+class TextureScene : public Scene {  // Render something to a texture
+public:
+  // Draw texture to screen
+  unsigned int vbo_tex;
+  unsigned int ebo_tex;
+  unsigned int tex; // The texture to be drawn
+  unsigned int shader_program;
+  TextureScene();
   void Render();
   void Update(float secs);
 };

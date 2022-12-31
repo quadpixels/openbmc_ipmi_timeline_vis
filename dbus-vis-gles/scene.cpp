@@ -153,17 +153,65 @@ RotatingCubeScene::RotatingCubeScene() {
   shader_program = BuildShaderProgram("shaders/vert_mvp_palette.vs", "shaders/hellotriangle.fs");
 
   projection_matrix = glm::perspective(60.0f*3.14159f/180.0f, WIN_W*1.0f/WIN_H, 0.1f, 499.0f);
-  model_matrix = glm::mat4(1);
+  const int N = 5;
+  positions.resize(N);
+  orientations.resize(N);
+  for (int i=0; i<N; i++) {
+    orientations[i] = glm::mat3(1);
+  }
+
+  vbo_lines = 0;
+  ebo_lines = 0;
 
   MyCheckError("RotatingCubeScene init");
 }
 
 void RotatingCubeScene::Update(float secs) {
-  const float theta = secs * 60;
-  model_matrix = RotateAroundLocalAxis(model_matrix,
-    glm::vec3(1,0,0), theta);
-  model_matrix = RotateAroundGlobalAxis(model_matrix,
-    glm::normalize(glm::vec3(0,1,1)), theta);
+  const float R = 32;
+  const int N = int(positions.size());
+  for (int i=0; i<int(positions.size()); i++) {
+    const float theta = Lerp(0, 2 * 3.14159f, i*1.0f / N) + glfwGetTime() * 3.14159f / 3;
+    glm::vec3& p = positions[i];
+    p.x = R * cos(theta);
+    p.z = R * sin(theta);
+    glm::mat3& m = orientations[i];
+    m = RotateAroundGlobalAxis(m, glm::normalize(glm::vec3(0,1,1)), secs*60);
+    m = RotateAroundLocalAxis(m, glm::vec3(1,0,0), secs*60);
+  }
+
+  std::vector<float> data;
+  for (int i=0; i<N; i++) {
+    glm::vec3& p = positions[i];
+    data.push_back(p.x);
+    data.push_back(p.y);
+    data.push_back(p.z);
+    data.push_back(120); // color idx.
+  }
+  if (vbo_lines == 0) {
+    glGenBuffers(1, &vbo_lines);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_lines);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*4*N, NULL, GL_STATIC_DRAW);
+    MyCheckError("Create vbo_lines");
+  }
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_lines);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float)*4*N, data.data());
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  MyCheckError("Update vbo_lines");
+
+  std::vector<int> data2;
+  for (int i=0; i<N; i++) {
+    data2.push_back(i);
+    data2.push_back((i+1) % N);
+  }
+  if (ebo_lines == 0) {
+    glGenBuffers(1, &ebo_lines);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_lines);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int)*N*2, NULL, GL_DYNAMIC_DRAW);
+  }
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_lines);
+  glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(int)*2*N, data2.data());
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  MyCheckError("Update ebo_lines");
 }
 
 void RotatingCubeScene::Render() {
@@ -173,12 +221,6 @@ void RotatingCubeScene::Render() {
   unsigned m_loc = glGetUniformLocation(shader_program, "M");
   unsigned v_loc = glGetUniformLocation(shader_program, "V");
   unsigned p_loc = glGetUniformLocation(shader_program, "P");
-  glm::mat4 M = model_matrix;
-  glm::mat4 V = camera.GetViewMatrix();
-  glm::mat4 P = projection_matrix;
-  glUniformMatrix4fv(m_loc, 1, false, &M[0][0]);
-  glUniformMatrix4fv(v_loc, 1, false, &V[0][0]);
-  glUniformMatrix4fv(p_loc, 1, false, &P[0][0]);
 
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 4*sizeof(float), NULL);
@@ -187,8 +229,32 @@ void RotatingCubeScene::Render() {
   glEnableVertexAttribArray(1);
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-  
-  glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+  for (int i=0; i<int(positions.size()); i++) {
+    glm::mat4 M = orientations[i];
+    M = glm::translate(M, glm::inverse(orientations[i])*positions[i]);
+    glm::mat4 V = camera.GetViewMatrix();
+    glm::mat4 P = projection_matrix;
+    glUniformMatrix4fv(m_loc, 1, false, &M[0][0]);
+    glUniformMatrix4fv(v_loc, 1, false, &V[0][0]);
+    glUniformMatrix4fv(p_loc, 1, false, &P[0][0]);
+    
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+  }
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_lines);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 4*sizeof(float), NULL);
+  glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)(3*sizeof(float)));
+  glEnableVertexAttribArray(0);
+  glEnableVertexAttribArray(1);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_lines);
+  glm::mat4 M(1);
+  glm::mat4 V = camera.GetViewMatrix();
+  glm::mat4 P = projection_matrix;
+  glUniformMatrix4fv(m_loc, 1, false, &M[0][0]);
+  glUniformMatrix4fv(v_loc, 1, false, &V[0][0]);
+  glUniformMatrix4fv(p_loc, 1, false, &P[0][0]);
+  glDrawElements(GL_LINES, positions.size()*2, GL_UNSIGNED_INT, 0);
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);

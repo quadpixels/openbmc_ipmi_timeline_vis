@@ -1,4 +1,6 @@
 
+#include <vector>
+
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
 
@@ -35,8 +37,11 @@ public:
   unsigned int vbo;
   unsigned int ebo;
   unsigned int shader_program;
+  unsigned int vbo_lines;
+  unsigned int ebo_lines;
   glm::mat4 projection_matrix;
-  glm::mat4 model_matrix;
+  std::vector<glm::vec3> positions;
+  std::vector<glm::mat3> orientations;
   Camera camera;
   RotatingCubeScene();
   void Render();

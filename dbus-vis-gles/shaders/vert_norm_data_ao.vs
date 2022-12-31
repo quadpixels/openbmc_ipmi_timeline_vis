@@ -3,8 +3,9 @@
 in vec3 position;
 in vec3 properties;  // normal_idx + color_idx + ao
 
-out vec4 vert_color;
+out vec3 vert_color;
 out vec3 normal;
+out vec4 frag_pos_lightspace;
 
 uniform mat4 M;
 uniform mat4 V;
@@ -56,6 +57,6 @@ vec3 default_normals[6] = vec3[](
 void main()
 {
   gl_Position = P * V * M * vec4(position, 1.0f);
-  vert_color = vec4(default_palette[int(properties.y)], 1.0f);
+  vert_color = default_palette[int(properties.y)];
   normal     = default_normals[int(properties.x)];
 }

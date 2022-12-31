@@ -3,7 +3,7 @@
 in vec2  aPos;
 in float colorIdx;
 
-out vec4 vertexColor;
+out vec3 vertexColor;
 
 vec3 default_palette[256] = vec3[](
     vec3(0.0,0.0,0.0),vec3(1.0,1.0,1.0),vec3(0.8,1.0,1.0),vec3(0.6,1.0,1.0),vec3(0.4,1.0,1.0),vec3(0.2,1.0,1.0),vec3(0.0,1.0,1.0),vec3(1.0,0.8,1.0),
@@ -42,5 +42,5 @@ vec3 default_palette[256] = vec3[](
 
 void main() {
     gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
-    vertexColor = vec4(default_palette[int(colorIdx)], 1);
+    vertexColor = default_palette[int(colorIdx)];
 }

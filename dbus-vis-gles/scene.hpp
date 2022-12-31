@@ -51,8 +51,10 @@ public:
 
 class OneChunkScene : public Scene {  // Show 1 Vox
 public:
+  // For backdrop
   unsigned int vbo;
   unsigned int ebo;
+
   unsigned int shader_program;
   glm::mat4 projection_matrix;
   Camera camera;

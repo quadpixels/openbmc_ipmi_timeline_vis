@@ -470,7 +470,7 @@ void TextureScene::Render() {
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(float)*5, 0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(float)*5, (void*)(3*sizeof(float)));
+  glVertexAttribPointer(1, 2, GL_FLOAT, false, sizeof(float)*5, (void*)(3*sizeof(float)));
   
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, tex);

@@ -91,3 +91,9 @@ public:
   void Render();
   void Update(float secs);
 };
+
+class DBusPCAPScene : public Scene {  // Putting everything together . . .
+public:
+  void Render();
+  void Update(float secs);
+};

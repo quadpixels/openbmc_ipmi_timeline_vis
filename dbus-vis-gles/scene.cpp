@@ -16,7 +16,7 @@ HelloTriangleScene::HelloTriangleScene() {
   const float R1 = 0.4f, G1 = 1.0f, B1 = 0.4f;
   const float R2 = 0.4f, G2 = 0.4f, B2 = 1.0f;
   // 1. Buffer
-  constexpr float vertices0[] = {
+  float vertices0[] = {
     -0.9f, -0.5f, 0.0f, R0, G0, B0,
     -0.1f, -0.5f, 0.0f, R1, G1, B1,
     -0.5f,  0.5f, 0.0f, R2, G2, B2,
@@ -27,7 +27,7 @@ HelloTriangleScene::HelloTriangleScene() {
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices0), vertices0, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  constexpr float vertices1[] = {
+  float vertices1[] = {
     0.9f, -0.5f, 0.0f, R0, G0, B0,
     0.1f, -0.5f, 0.0f, R1, G1, B1,
     0.1f, -0.5f, 0.0f, R1, G1, B1,
@@ -270,6 +270,7 @@ void RotatingCubeScene::Render() {
 }
 
 OneChunkScene::Backdrop::Backdrop(float half_width, int cidx) {
+  pos = glm::vec3(0);
   const float L = half_width;
   const float verts[] = {
     -L, 0, -L, 4, float(cidx), 0,
@@ -363,6 +364,7 @@ void OneChunkScene::Render() {
   // Depth pass
   depth_fbo->Bind();
   glClear(GL_DEPTH_BUFFER_BIT);
+  MyCheckError("Clearing Depth Buffer Bit");
   chunk.Render();
   chunkindex->Render(glm::vec3(-10, 0, 10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
   chunksprite->Render();
@@ -381,12 +383,10 @@ void OneChunkScene::Render() {
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
   backdrop->Render();
-
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
   chunkindex->Render(glm::vec3(-10, 0, 10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
   chunk.Render();
   chunksprite->Render();
+  glBindTexture(GL_TEXTURE_2D, 0);  // Fix "illegal feedback" error detected when using WebGL
   MyCheckError("Chunk render");
 }
 
@@ -509,6 +509,7 @@ void TextureScene::Render() {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   glViewport(0, 0, WIN_W, WIN_H);
+  
   MyCheckError("TextureScene Render");
 }
 

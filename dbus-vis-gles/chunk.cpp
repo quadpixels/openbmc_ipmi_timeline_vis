@@ -371,6 +371,7 @@ void Chunk::Render(const glm::mat4& M) {
   glDrawArrays(GL_TRIANGLES, 0, tri_count * 3);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glUseProgram(0);
+  MyCheckError("Chunk::Render");
 }
 
 void Chunk::Render() {

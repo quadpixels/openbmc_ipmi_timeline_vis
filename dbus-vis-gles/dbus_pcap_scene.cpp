@@ -40,6 +40,9 @@ void DBusPCAPScene::Render() {
                              directional_light->dir.y,
                              directional_light->dir.z);
 
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, 0);
+
   // Depth-only pass
   depth_fbo->Bind();
   glClear(GL_DEPTH_BUFFER_BIT);
@@ -60,11 +63,14 @@ void DBusPCAPScene::Render() {
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
+
   backdrop->Render();
   for (const auto &s : sprites) {
     s->sprite->Render();
   }
 
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, 0);
   glUseProgram(0);
   MyCheckError("dbus pcap scene render");
 }

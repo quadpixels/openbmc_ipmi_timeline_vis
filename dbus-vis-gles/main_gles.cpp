@@ -113,8 +113,6 @@ int main(int argc, char** argv) {
   printf("OpenGL Renderer String: %s\n", sz2);
   const char* sz3 = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
   printf("OpenGL Shading Language Version: %s\n", sz3);
-  
-  MyCheckError("print a few strings");
 
   MyInit();
   g_curr_scene = g_hellotriangle;

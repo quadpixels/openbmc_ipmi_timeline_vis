@@ -9,8 +9,15 @@
 std::string ReadFileIntoString(const char* file_name) {
   std::string ret;
   std::ifstream ifs(file_name);
-  while (ifs.good()) {
-    ret.push_back(ifs.get());
+  if (ifs.is_open()) {
+    std::string line;
+    while (getline(ifs, line)) {
+      ret += line + "\n";
+    }
+    ifs.close();
+  } else {
+    printf("Error: cannot open %s\n", file_name);
+    exit(1);
   }
   return ret;
 }
@@ -48,7 +55,10 @@ void MyCheckError(const char* tag, bool ignore = false) {
     case GL_OUT_OF_MEMORY: printf("GL_OUT_OF_MEMORY, %s\n", tag); break;
     default: printf("Error %d: %s\n", err, tag); break;
   }
-  if (!ignore) exit(1);
+  if (!ignore) {
+    exit(1);
+    glfwTerminate();  // To make sure program really terminates in Emscripten
+  }
 }
 
 float Lerp(float a, float b, float t) {
@@ -106,5 +116,5 @@ void PrintMat4(const glm::mat4& m, const char* tag) {
 }
 
 float RandRange(float lb, float ub) {
-  return lb + (ub-lb) * rand() / RAND_MAX;
+  return float(lb + (ub-lb) * rand() / (double)RAND_MAX);
 }

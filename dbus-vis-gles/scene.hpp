@@ -79,6 +79,7 @@ public:
   unsigned int shader_program;
 
   BasicFBO* basic_fbo;
+  DepthOnlyFBO* depth_fbo;
 
   TextureScene();
   void Render();

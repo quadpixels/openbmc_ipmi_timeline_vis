@@ -420,6 +420,7 @@ TextureScene::TextureScene() {
 
   // 3. FBO to draw to the screen.
   basic_fbo = new BasicFBO(WIN_W, WIN_H);
+  depth_fbo = new DepthOnlyFBO(WIN_W, WIN_H);
 }
 
 void TextureScene::Render() {
@@ -428,6 +429,14 @@ void TextureScene::Render() {
     basic_fbo->Bind();
     g_hellotriangle->Render();
     basic_fbo->Unbind();
+  }
+
+  {
+    depth_fbo->Bind();
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+    g_hellotriangle->Render();
+    depth_fbo->Unbind();
   }
 
   glBindBuffer(GL_ARRAY_BUFFER, vbo_tex);
@@ -451,6 +460,10 @@ void TextureScene::Render() {
 
   glViewport(0, WIN_H/2, WIN_W/2, WIN_H/2);
   glBindTexture(GL_TEXTURE_2D, depth_buffer_tex);
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+  glViewport(WIN_W/2, WIN_H/2, WIN_W/2, WIN_H/2);
+  glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);

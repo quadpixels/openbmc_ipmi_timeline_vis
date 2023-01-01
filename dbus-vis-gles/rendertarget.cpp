@@ -50,3 +50,24 @@ BasicFBO::BasicFBO(const int _w, const int _h) {
   glBindTexture(GL_TEXTURE_2D, 0);
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+
+DepthOnlyFBO::DepthOnlyFBO(const int _w, const int _h) {
+  width = _w; height = _h;
+  glGenTextures(1, &tex);
+  glBindTexture(GL_TEXTURE_2D, tex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16,
+               width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, NULL); // changed for js
+
+  // filtering method must match texture's filter-ability
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  glGenFramebuffers(1, &fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex, 0);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  MyCheckError("create depth fbo");
+}

@@ -2,6 +2,7 @@
 
 #include "rendertarget.hpp"
 #include "scene.hpp"
+#include "sprite.hpp"
 #include "util.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -268,13 +269,14 @@ void RotatingCubeScene::Render() {
 
 OneChunkScene::OneChunkScene() {
   // Backdrop
-  const float L = 32;
+  const float L = 50;
+  const float Y0 = -20;
   const float cidx = 120;  // color idx for backdrop
   const float verts[] = {
-    -L, -20, -L, 4, cidx, 0,
-    -L, -20,  L, 4, cidx, 0,
-     L, -20,  L, 4, cidx, 0,
-     L, -20, -L, 4, cidx, 0,
+    -L, Y0, -L, 4, cidx, 0,
+    -L, Y0,  L, 4, cidx, 0,
+     L, Y0,  L, 4, cidx, 0,
+     L, Y0, -L, 4, cidx, 0,
   };
   glGenBuffers(1, &vbo);
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -314,6 +316,9 @@ OneChunkScene::OneChunkScene() {
   depth_fbo = new DepthOnlyFBO(WIN_W, WIN_H);
   directional_light = new DirectionalLight(glm::vec3(-1,-3,1), glm::vec3(1,3,-1)*50.0f);
   chunkindex = new ChunkGrid("vox/openbmc.vox");
+  chunksprite = new ChunkSprite(chunkindex);
+  chunksprite->pos = glm::vec3(-10, 0, -10);
+  chunksprite->RotateAroundGlobalAxis(glm::vec3(1,0,0), 90);
 }
 
 void OneChunkScene::Render() {
@@ -338,7 +343,8 @@ void OneChunkScene::Render() {
   depth_fbo->Bind();
   glClear(GL_DEPTH_BUFFER_BIT);
   chunk.Render();
-  chunkindex->Render(glm::vec3(-10, 0, -10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
+  chunkindex->Render(glm::vec3(-10, 0, 10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
+  chunksprite->Render();
   depth_fbo->Unbind();
   MyCheckError("Render to Depth FBO");
 
@@ -374,13 +380,14 @@ void OneChunkScene::Render() {
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
-  chunkindex->Render(glm::vec3(-10, 0, -10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
+  chunkindex->Render(glm::vec3(-10, 0, 10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
   chunk.Render();
+  chunksprite->Render();
   MyCheckError("Chunk render");
 }
 
 void OneChunkScene::Update(float secs) {
-
+  chunksprite->RotateAroundGlobalAxis(glm::vec3(0,1,0), 90*secs);
 }
 
 TextureScene::TextureScene() {
@@ -502,5 +509,5 @@ void TextureScene::Render() {
 }
 
 void TextureScene::Update(float secs) {
-
+  
 }

@@ -8,6 +8,7 @@
 #include "chunk.hpp"
 #include "chunkindex.hpp"
 #include "rendertarget.hpp"
+#include "sprite.hpp"
 #include "util.hpp"
 
 class Scene {
@@ -69,6 +70,7 @@ public:
 
   Chunk chunk;
   ChunkIndex* chunkindex;
+  ChunkSprite* chunksprite;
 
   OneChunkScene();
   void Render();

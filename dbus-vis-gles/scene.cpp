@@ -267,29 +267,48 @@ void RotatingCubeScene::Render() {
   MyCheckError("RotatingCubeScene Render");
 }
 
-OneChunkScene::OneChunkScene() {
-  // Backdrop
-  const float L = 50;
-  const float Y0 = -20;
-  const float cidx = 120;  // color idx for backdrop
+OneChunkScene::Backdrop::Backdrop(float half_width, int cidx) {
+  const float L = half_width;
   const float verts[] = {
-    -L, Y0, -L, 4, cidx, 0,
-    -L, Y0,  L, 4, cidx, 0,
-     L, Y0,  L, 4, cidx, 0,
-     L, Y0, -L, 4, cidx, 0,
+    -L, 0, -L, 4, float(cidx), 0,
+    -L, 0,  L, 4, float(cidx), 0,
+     L, 0,  L, 4, float(cidx), 0,
+     L, 0, -L, 4, float(cidx), 0,
   };
   glGenBuffers(1, &vbo);
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
-  const int idxes[] = {
-    3,0,1,  1,2,3
-  };
+  const int idxes[] = { 3,0,1, 1,2,3 };
   glGenBuffers(1, &ebo);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idxes), idxes, GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
 
+void OneChunkScene::Backdrop::Render() {
+  unsigned m_loc = glGetUniformLocation(Chunk::shader_program, "M");
+  glm::mat4 M(1);
+  M = glm::translate(M, pos);
+  glUniformMatrix4fv(m_loc, 1, false, &M[0][0]);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+  const size_t stride = sizeof(float)*6;
+  // XYZ pos
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (GLvoid*)0);
+  glEnableVertexAttribArray(0);
+  // Normal idx + Data + AO Index
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (GLvoid*)(3*sizeof(GLfloat)));
+  glEnableVertexAttribArray(1);
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  MyCheckError("Backdrop render");
+}
+
+OneChunkScene::OneChunkScene() {
+  backdrop = new Backdrop(50, 251);
+  backdrop->pos = glm::vec3(0, -20, 0);
   // Chunk
   chunk.LoadDefault();
   Chunk* null_neighs[26] = {};
@@ -358,25 +377,7 @@ void OneChunkScene::Render() {
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
-  // Drawing the backdrop
-  {
-    unsigned m_loc = glGetUniformLocation(Chunk::shader_program, "M");
-    glm::mat4 M(1);
-    glUniformMatrix4fv(m_loc, 1, false, &M[0][0]);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    const size_t stride = sizeof(float)*6;
-    // XYZ pos
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (GLvoid*)0);
-    glEnableVertexAttribArray(0);
-    // Normal idx + Data + AO Index
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (GLvoid*)(3*sizeof(GLfloat)));
-    glEnableVertexAttribArray(1);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  }
-  MyCheckError("Drawing the backdrop");
+  backdrop->Render();
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);

@@ -1,5 +1,8 @@
 #include "scene.hpp"
 
+DBusPCAPScene::DBusPCAPScene() {
+}
+
 void DBusPCAPScene::Render() {
 
 }

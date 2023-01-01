@@ -54,9 +54,17 @@ public:
 
 class OneChunkScene : public Scene {  // Show 1 Vox Chunk
 public:
-  // For backdrop
-  unsigned int vbo;
-  unsigned int ebo;
+  // Facing upwards (+Y)
+  // Backdrop uses Chunk's shader program
+  class Backdrop {
+  public:
+    Backdrop(float half_width, int color_index);
+    unsigned int vbo;
+    unsigned int ebo;
+    glm::vec3 pos;
+    void Render();
+  };
+  Backdrop* backdrop;
 
   // For dummy texture resource
   unsigned int depth_buffer_tex;
@@ -96,6 +104,15 @@ public:
 
 class DBusPCAPScene : public Scene {  // Putting everything together . . .
 public:
+  // Load assets
+  std::vector<ChunkIndex*> chunk_assets;
+  DBusPCAPScene();
+  
+  Camera camera;
+  DirectionalLight* directional_light;
+  glm::mat4 projection_matrix;
+  DepthOnlyFBO* depth_fbo;
+  
   void Render();
   void Update(float secs);
 };

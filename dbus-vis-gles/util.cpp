@@ -98,3 +98,9 @@ glm::mat3 RotateAroundGlobalAxis(const glm::mat3& orientation, const glm::vec3& 
   o = glm::rotate(o, deg*3.14159f/180.0f, axis);
   return glm::mat3(o);
 }
+
+void PrintMat4(const glm::mat4& m, const char* tag) {
+  printf("%s =\n", tag);
+  for (int i=0; i<4; i++)
+    printf("%5g, %5g, %5g, %5g\n", m[i][0], m[i][1], m[i][2], m[i][3]);
+}

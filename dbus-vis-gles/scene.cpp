@@ -310,6 +310,9 @@ OneChunkScene::OneChunkScene() {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glBindTexture(GL_TEXTURE_2D, 0);
+
+  depth_fbo = new DepthOnlyFBO(WIN_W, WIN_H);
+  directional_light = new DirectionalLight(glm::vec3(-1,-3,1), glm::vec3(1,3,-1)*50.0f);
 }
 
 void OneChunkScene::Render() {
@@ -319,14 +322,34 @@ void OneChunkScene::Render() {
   unsigned v_loc = glGetUniformLocation(Chunk::shader_program, "V");
   unsigned p_loc = glGetUniformLocation(Chunk::shader_program, "P");
   unsigned dir_light_loc = glGetUniformLocation(Chunk::shader_program, "dir_light");
-  glm::mat4 V = camera.GetViewMatrix();
-  glm::mat4 P = projection_matrix;
+  unsigned lightpv_loc = glGetUniformLocation(Chunk::shader_program, "lightPV");
+  glm::mat4 V;
+  glm::mat4 P;
+  V = directional_light->V;
+  P = directional_light->P;
   glUniformMatrix4fv(v_loc, 1, false, &V[0][0]);
   glUniformMatrix4fv(p_loc, 1, false, &P[0][0]);
-  glUniform3f(dir_light_loc, directional_light.dir.x,
-                             directional_light.dir.y,
-                             directional_light.dir.z);
+  glUniform3f(dir_light_loc, directional_light->dir.x,
+                             directional_light->dir.y,
+                             directional_light->dir.z);
 
+  // Depth pass
+  depth_fbo->Bind();
+  glClear(GL_DEPTH_BUFFER_BIT);
+  chunk.Render();
+  depth_fbo->Unbind();
+  MyCheckError("Render to Depth FBO");
+
+  glUseProgram(Chunk::shader_program);
+  glm::mat4 lightPV = directional_light->P * directional_light->V;
+  glUniformMatrix4fv(lightpv_loc, 1, false, &lightPV[0][0]);
+  V = camera.GetViewMatrix();
+  P = projection_matrix;
+  glUniformMatrix4fv(v_loc, 1, false, &V[0][0]);
+  glUniformMatrix4fv(p_loc, 1, false, &P[0][0]);
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
   // Drawing the backdrop
   {
     unsigned m_loc = glGetUniformLocation(Chunk::shader_program, "M");
@@ -345,7 +368,10 @@ void OneChunkScene::Render() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
+  MyCheckError("Drawing the backdrop");
 
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
   chunk.Render();
   MyCheckError("Chunk render");
 }

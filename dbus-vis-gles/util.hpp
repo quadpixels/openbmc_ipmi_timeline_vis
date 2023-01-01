@@ -10,3 +10,4 @@ void MyCheckError(const char* tag, bool ignore = false);
 float Lerp(float a, float b, float t);
 glm::mat3 RotateAroundLocalAxis(const glm::mat3& orientation, const glm::vec3& axis, const float deg);
 glm::mat3 RotateAroundGlobalAxis(const glm::mat3& orientation, const glm::vec3& axis, const float deg);
+void PrintMat4(const glm::mat4& m, const char* tag);

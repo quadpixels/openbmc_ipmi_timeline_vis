@@ -12,7 +12,7 @@ Chunk::Chunk() {
   const int num_cells = kSize * kSize * kSize;
   block = new unsigned char[num_cells];
   light = new int[num_cells];
-
+  pos = glm::vec3(-10, 0, -10);
   memset(block, 0, sizeof(char) * num_cells);
   memset(light, 0, sizeof(int) * num_cells);
   is_dirty = true;

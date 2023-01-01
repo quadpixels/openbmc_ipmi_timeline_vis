@@ -59,10 +59,12 @@ public:
   // For dummy texture resource
   unsigned int depth_buffer_tex;
 
+  DepthOnlyFBO* depth_fbo;
+
   unsigned int shader_program;
   glm::mat4 projection_matrix;
   Camera camera;
-  DirectionalLight directional_light;
+  DirectionalLight* directional_light;
   Chunk chunk;
   OneChunkScene();
   void Render();

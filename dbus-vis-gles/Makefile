@@ -26,7 +26,7 @@ util.o: util.cpp
 scene.o: scene.cpp
 	g++ $< -c $(CXXFLAGS) -o $@
 
-main_gles: main_gles.cpp util.o scene.o camera.o chunk.o rendertarget.o chunkindex.o sprite.o
+main_gles: main_gles.cpp util.o scene.o camera.o chunk.o rendertarget.o chunkindex.o sprite.o dbus_pcap_scene.o
 	g++ $^ $(CXXFLAGS) -o main_gles -lglfw -lGLESv2
 
 clean:

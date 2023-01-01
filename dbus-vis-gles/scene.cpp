@@ -1,3 +1,5 @@
+// 2022-12-30
+
 #include <vector>
 
 #include "rendertarget.hpp"
@@ -367,6 +369,7 @@ void OneChunkScene::Render() {
   depth_fbo->Unbind();
   MyCheckError("Render to Depth FBO");
 
+  // Normal pass
   glUseProgram(Chunk::shader_program);
   glm::mat4 lightPV = directional_light->P * directional_light->V;
   glUniformMatrix4fv(lightpv_loc, 1, false, &lightPV[0][0]);

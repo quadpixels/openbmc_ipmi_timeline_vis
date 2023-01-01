@@ -1,4 +1,6 @@
+// 2022-12-30
 
+#include <unordered_map>
 #include <vector>
 
 #define GLFW_INCLUDE_ES2
@@ -105,9 +107,17 @@ public:
 class DBusPCAPScene : public Scene {  // Putting everything together . . .
 public:
   // Load assets
-  std::vector<ChunkIndex*> chunk_assets;
+  enum AssetID {
+    OpenBMC = 0,
+  };
+  std::unordered_map<AssetID, ChunkIndex*> chunk_assets;
+  std::vector<Sprite*> sprites;
+
   DBusPCAPScene();
+
+  Sprite* CreateSprite(AssetID asset_id, const glm::vec3& pos);
   
+  OneChunkScene::Backdrop* backdrop;
   Camera camera;
   DirectionalLight* directional_light;
   glm::mat4 projection_matrix;

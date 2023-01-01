@@ -19,6 +19,7 @@ OneChunkScene*      g_onechunk;
 PaletteScene*       g_paletteview;
 RotatingCubeScene*  g_rotating_cube;
 TextureScene*       g_texture_scene;
+DBusPCAPScene*      g_dbuspcap_scene;
 
 void Update(float delta_secs) {
   g_curr_scene->Update(delta_secs);
@@ -44,6 +45,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
   case GLFW_KEY_3: g_curr_scene = g_rotating_cube; break;
   case GLFW_KEY_4: g_curr_scene = g_onechunk; break;
   case GLFW_KEY_5: g_curr_scene = g_texture_scene; break;
+  case GLFW_KEY_6: g_curr_scene = g_dbuspcap_scene; break;
   default: break;
   }
 }
@@ -54,6 +56,7 @@ void MyInit() {
   g_rotating_cube = new RotatingCubeScene();
   g_onechunk = new OneChunkScene();
   g_texture_scene = new TextureScene();
+  g_dbuspcap_scene = new DBusPCAPScene();
 
   Chunk::shader_program = BuildShaderProgram("shaders/vert_norm_data_ao.vs", "shaders/vert_norm_data_ao.fs");
   MyCheckError("Build Chunk's shader program");

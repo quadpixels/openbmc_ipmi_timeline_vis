@@ -18,6 +18,17 @@ Chunk::Chunk() {
   is_dirty = true;
 }
 
+Chunk::Chunk(Chunk& other) {
+  is_dirty = true;
+  pos = other.pos;
+  tri_count = vbo = 0;
+  const int num_cells = kSize * kSize * kSize;
+  block = new unsigned char[num_cells];
+  light = new int[num_cells];
+  memcpy(block, other.block, sizeof(char)*num_cells);
+  memcpy(light, other.light, sizeof(int)*num_cells);
+}
+
 void Chunk::BuildBuffers(Chunk* neighbors[26]) {
   if (vbo != (unsigned)-999) {
     glDeleteBuffers(1, &vbo);
@@ -366,4 +377,13 @@ void Chunk::Render() {
   glm::mat4 M(1);
   M = glm::translate(M, pos);
   Render(M);
+}
+
+void Chunk::SetVoxel(unsigned x, unsigned y, unsigned z, int v) {
+  block[IX(x,y,z)] = v;
+  is_dirty = true;
+}
+
+int Chunk::GetVoxel(unsigned x, unsigned y, unsigned z) {
+  return block[IX(x,y,z)];
 }

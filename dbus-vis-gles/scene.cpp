@@ -313,6 +313,7 @@ OneChunkScene::OneChunkScene() {
 
   depth_fbo = new DepthOnlyFBO(WIN_W, WIN_H);
   directional_light = new DirectionalLight(glm::vec3(-1,-3,1), glm::vec3(1,3,-1)*50.0f);
+  chunkindex = new ChunkGrid("vox/openbmc.vox");
 }
 
 void OneChunkScene::Render() {
@@ -337,6 +338,7 @@ void OneChunkScene::Render() {
   depth_fbo->Bind();
   glClear(GL_DEPTH_BUFFER_BIT);
   chunk.Render();
+  chunkindex->Render(glm::vec3(-10, 0, -10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
   depth_fbo->Unbind();
   MyCheckError("Render to Depth FBO");
 
@@ -372,6 +374,7 @@ void OneChunkScene::Render() {
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
+  chunkindex->Render(glm::vec3(-10, 0, -10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
   chunk.Render();
   MyCheckError("Chunk render");
 }

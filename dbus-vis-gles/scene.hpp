@@ -6,6 +6,7 @@
 
 #include "camera.hpp"
 #include "chunk.hpp"
+#include "chunkindex.hpp"
 #include "rendertarget.hpp"
 #include "util.hpp"
 
@@ -65,7 +66,10 @@ public:
   glm::mat4 projection_matrix;
   Camera camera;
   DirectionalLight* directional_light;
+
   Chunk chunk;
+  ChunkIndex* chunkindex;
+
   OneChunkScene();
   void Render();
   void Update(float secs);

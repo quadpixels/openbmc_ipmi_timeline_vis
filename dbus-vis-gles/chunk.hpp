@@ -21,7 +21,7 @@ public:
   void Render();
   void Render(const glm::mat4& M);
   void SetVoxel(unsigned x, unsigned y, unsigned z, int v);
-  void GetVoxel(unsigned x, unsigned y, unsigned z);
+  int  GetVoxel(unsigned x, unsigned y, unsigned z);
   void Fill(int vox);
   bool is_dirty;
   unsigned char* block;

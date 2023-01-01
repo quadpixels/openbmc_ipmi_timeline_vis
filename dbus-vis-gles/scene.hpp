@@ -109,20 +109,32 @@ public:
   // Load assets
   enum AssetID {
     OpenBMC = 0,
+    HwMon = 1,
   };
   std::unordered_map<AssetID, ChunkIndex*> chunk_assets;
-  std::vector<Sprite*> sprites;
+
+  struct SpriteAndProperty {
+    ChunkSprite* sprite;
+    std::string dbus_service_name;
+    ~SpriteAndProperty() {
+      delete sprite;
+    }
+  };
+
+  std::vector<struct SpriteAndProperty*> sprites;
 
   DBusPCAPScene();
 
-  Sprite* CreateSprite(AssetID asset_id, const glm::vec3& pos);
+  SpriteAndProperty* CreateSprite(AssetID asset_id, const glm::vec3& pos);
+  ChunkSprite* openbmc_sprite;
   
   OneChunkScene::Backdrop* backdrop;
   Camera camera;
   DirectionalLight* directional_light;
   glm::mat4 projection_matrix;
   DepthOnlyFBO* depth_fbo;
-  
+
   void Render();
   void Update(float secs);
+  void Test1();
 };

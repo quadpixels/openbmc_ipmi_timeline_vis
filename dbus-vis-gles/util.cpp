@@ -104,3 +104,7 @@ void PrintMat4(const glm::mat4& m, const char* tag) {
   for (int i=0; i<4; i++)
     printf("%5g, %5g, %5g, %5g\n", m[i][0], m[i][1], m[i][2], m[i][3]);
 }
+
+float RandRange(float lb, float ub) {
+  return lb + (ub-lb) * rand() / RAND_MAX;
+}

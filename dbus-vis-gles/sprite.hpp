@@ -32,4 +32,7 @@ public:
   void RotateAroundLocalAxis(const glm::vec3& axis, const float deg);
   void RotateAroundGlobalAxis(const glm::vec3& axis, const float deg);
   virtual void Render();
+
+  // Test functions
+  void Test1(); // spawn a random sprite
 };

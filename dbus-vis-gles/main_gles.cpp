@@ -35,18 +35,25 @@ void Render() {
 }
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-  switch (key) {
-  case GLFW_KEY_ESCAPE: {
-    printf("Done.\n");
-    exit(0);
-  }
-  case GLFW_KEY_1: g_curr_scene = g_hellotriangle; break;
-  case GLFW_KEY_2: g_curr_scene = g_paletteview; break;
-  case GLFW_KEY_3: g_curr_scene = g_rotating_cube; break;
-  case GLFW_KEY_4: g_curr_scene = g_onechunk; break;
-  case GLFW_KEY_5: g_curr_scene = g_texture_scene; break;
-  case GLFW_KEY_6: g_curr_scene = g_dbuspcap_scene; break;
-  default: break;
+  if (action == GLFW_PRESS) {
+    switch (key) {
+    case GLFW_KEY_ESCAPE: {
+      printf("Done.\n");
+      exit(0);
+    }
+    case GLFW_KEY_1: g_curr_scene = g_hellotriangle; break;
+    case GLFW_KEY_2: g_curr_scene = g_paletteview; break;
+    case GLFW_KEY_3: g_curr_scene = g_rotating_cube; break;
+    case GLFW_KEY_4: g_curr_scene = g_onechunk; break;
+    case GLFW_KEY_5: g_curr_scene = g_texture_scene; break;
+    case GLFW_KEY_6: g_curr_scene = g_dbuspcap_scene; break;
+    case GLFW_KEY_Q: {
+      if (g_curr_scene == g_dbuspcap_scene) {
+        g_dbuspcap_scene->Test1();
+      }
+    }
+    default: break;
+    }
   }
 }
 

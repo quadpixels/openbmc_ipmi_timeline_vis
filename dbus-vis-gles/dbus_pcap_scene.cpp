@@ -11,11 +11,18 @@ DBusPCAPScene::DBusPCAPScene() {
   projection_matrix = glm::perspective(60.0f*3.14159f/180.0f, WIN_W*1.0f/WIN_H, 0.1f, 499.0f);
 
   chunk_assets[AssetID::OpenBMC] = new ChunkGrid("vox/openbmc.vox");
-  CreateSprite(AssetID::OpenBMC, glm::vec3(0,2,0));
+  chunk_assets[AssetID::HwMon] = new ChunkGrid("vox/hwmon.vox");
+
+  openbmc_sprite = CreateSprite(AssetID::OpenBMC, glm::vec3(0,2,0))->sprite;
+  openbmc_sprite->pos = glm::vec3(0, 10, 0);
+  openbmc_sprite->RotateAroundGlobalAxis(glm::vec3(1,0,0), 90);
+
+  Test1();
 }
 
 void DBusPCAPScene::Render() {
   glEnable(GL_DEPTH_TEST);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glUseProgram(Chunk::shader_program);
 
   // Prepare pipeline states for the depth-only pass
@@ -37,8 +44,8 @@ void DBusPCAPScene::Render() {
   depth_fbo->Bind();
   glClear(GL_DEPTH_BUFFER_BIT);
   backdrop->Render();
-  for (Sprite* s : sprites) {
-    s->Render();
+  for (const auto& s : sprites) {
+    s->sprite->Render();
   }
   depth_fbo->Unbind();
 
@@ -54,8 +61,8 @@ void DBusPCAPScene::Render() {
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
   backdrop->Render();
-  for (Sprite* s : sprites) {
-    s->Render();
+  for (const auto &s : sprites) {
+    s->sprite->Render();
   }
 
   glUseProgram(0);
@@ -63,12 +70,19 @@ void DBusPCAPScene::Render() {
 }
 
 void DBusPCAPScene::Update(float secs) {
-  
+  openbmc_sprite->RotateAroundGlobalAxis(glm::vec3(0,1,0), secs*120);
 }
 
-Sprite* DBusPCAPScene::CreateSprite(DBusPCAPScene::AssetID asset_id, const glm::vec3& pos) {
+DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::CreateSprite(DBusPCAPScene::AssetID asset_id, const glm::vec3& pos) {
+  SpriteAndProperty* ret = new SpriteAndProperty();
   Sprite* s = new ChunkSprite(chunk_assets.at(asset_id));
   s->pos = pos;
-  sprites.push_back(s);
-  return s;
+  ret->sprite = dynamic_cast<ChunkSprite*>(s);
+  sprites.push_back(ret);
+  return ret;
+}
+
+void DBusPCAPScene::Test1() {
+  glm::vec3 p(RandRange(-50, 50), 8, RandRange(-50, 50));
+  CreateSprite(AssetID::HwMon, p);
 }

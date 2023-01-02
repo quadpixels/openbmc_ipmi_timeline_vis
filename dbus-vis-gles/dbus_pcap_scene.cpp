@@ -205,6 +205,27 @@ void DBusPCAPScene::Update(float secs) {
         sp->sprite->vel -= delta_v;
       }
     }
+
+    // 越界的情况的处理
+    glm::vec3& p = sp->sprite->pos;
+    glm::vec3& v = sp->sprite->vel;
+    const float xlimit = kSceneRadius - sp->sprite->chunk->GetCentroid().x;
+    const float zlimit = kSceneRadius - sp->sprite->chunk->GetCentroid().z;
+    if (p.x > xlimit) {
+      p.x = xlimit;
+      if (v.x > 0) v.x = -v.x;
+    } else if (p.x < -xlimit) {
+      p.x = -xlimit;
+      if (v.x < 0) v.x = -v.x;
+    }
+
+    if (p.z > zlimit) {
+      p.z = zlimit;
+      if (v.z > 0) v.z = -v.z;
+    } else if (p.z < -zlimit) {
+      p.z = -zlimit;
+      if (v.z < 0) v.z = -v.z;
+    }
   }
 
   float damp = pow(kDampening, secs / 0.016f);
@@ -212,8 +233,6 @@ void DBusPCAPScene::Update(float secs) {
     sp->sprite->pos += sp->sprite->vel * secs;
     sp->sprite->vel *= damp;
   }
-
-  // 越界的情况的处理
 
   sprites = spnext;
   projectiles = pnext;

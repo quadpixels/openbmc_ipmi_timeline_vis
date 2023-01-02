@@ -286,5 +286,7 @@ void PrintDBusType(const DBusType& x);
 std::string DBusTypeToJSON(const DBusType& x);
 bool ParseHeaderAndBody(const unsigned char* data, int len, FixedHeader* fixed_out, DBusMessageFields* fields_out,
 	std::vector<DBusType>* body_out);
+typedef void (*PacketCallback)(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, const unsigned char* packet);
+void SetPCAPCallback(PacketCallback cb);
 
 #endif

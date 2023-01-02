@@ -14,6 +14,7 @@
 #include <fstream>
 #include <functional>
 #include <thread>
+#include <pcap/pcap.h>
 #include "pcap_analyzer.hpp"
 #endif
 
@@ -93,12 +94,68 @@ void emscriptenLoop() {
 }
 
 #ifndef __EMSCRIPTEN__
+
+// For replay
+void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, const unsigned char* packet) {
+	const struct timeval& ts = pkthdr->ts;
+	double sec = ts.tv_sec * 1.0 + ts.tv_usec / 1000000.0;
+
+	int caplen = pkthdr->caplen, len = pkthdr->len;
+
+	if (caplen >= 12) {
+		AlignedStream s;
+		MessageEndian endian;
+		FixedHeader fixed;
+		DBusMessageFields fields;
+		std::vector<DBusType> body;
+
+		ParseHeaderAndBody(packet, caplen, &fixed, &fields, &body);
+
+		std::string path, iface, member, destination, sender;
+		uint32_t reply_serial = 0xFFFFFFFF;
+		for (const auto& entry : fields) {
+			switch (entry.first) {
+				case MessageHeaderType::PATH: {
+					path = std::get<object_path>(entry.second).str;
+					break;
+				}
+				case MessageHeaderType::INTERFACE: {
+					iface = std::get<std::string>(entry.second);
+					break;
+				}
+				case MessageHeaderType::MEMBER: {
+					member = std::get<std::string>(entry.second);
+					break;
+				}
+				case MessageHeaderType::DESTINATION: {
+					destination = std::get<std::string>(entry.second);
+					break;
+				}
+				case MessageHeaderType::SENDER: {
+					sender = std::get<std::string>(entry.second);
+					break;
+				}
+				case MessageHeaderType::REPLY_SERIAL: {
+					reply_serial = std::get<uint32_t>(entry.second);
+					break;
+				}
+				default: break;
+			}
+		}
+    
+    if (fixed.type == MessageType::METHOD_CALL) {
+      printf("MC @ %g: %s -> %s\n", sec, sender.c_str(), destination.c_str());
+    }
+	}
+}
+
 void StartPCAPReplayThread(const char* filename) {
   std::vector<uint8_t> buf;
   std::ifstream is(filename);
   while (is.good()) {
     buf.push_back(is.get());
   }
+  SetPCAPCallback(MyCallback);
   ProcessByteArray(buf);
 }
 #endif

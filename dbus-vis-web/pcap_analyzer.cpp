@@ -34,6 +34,7 @@
 int g_num_packets = 0;
 
 void PrintByteArray(const std::vector<uint8_t>&, const int);
+PacketCallback g_callback;
 
 #ifdef DBUS_PCAP_USING_EMSCRIPTEN
 
@@ -698,7 +699,7 @@ std::string DBusBodyToJSON(const std::vector<DBusType>& body) {
 }
 
 // Process 1 packet
-void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, const unsigned char* packet) {
+static void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, const unsigned char* packet) {
 	const struct timeval& ts = pkthdr->ts;
 	double sec = ts.tv_sec * 1.0 + ts.tv_usec / 1000000.0;
 
@@ -806,7 +807,16 @@ void PrintByteArray(const std::vector<uint8_t>& arr, const int width = 16) {
 	}
 }
 
+void SetPCAPCallback(PacketCallback cb) {
+	g_callback = cb;
+}
+
 void ProcessByteArray(const std::vector<uint8_t>& buf) {
+	if (g_callback == nullptr) {
+		printf("Using default callback.\n");
+		SetPCAPCallback(&MyCallback);
+	}
+
 	std::FILE* tmpf = std::tmpfile();
 	char errbuf[PCAP_ERRBUF_SIZE];
 	memset(errbuf, 0x00, sizeof(errbuf));
@@ -830,7 +840,7 @@ void ProcessByteArray(const std::vector<uint8_t>& buf) {
 		return;
 	}
 	int rc;
-	if ((rc = pcap_loop(the_pcap, 0, MyCallback, nullptr)) < 0) {
+	if ((rc = pcap_loop(the_pcap, 0, g_callback, nullptr)) < 0) {
 		printf("pcap_loop failed:, rc=%d, errbuf=%s\n",
 			rc, errbuf);
 		printf("%d packets processed so far\n", g_num_packets);

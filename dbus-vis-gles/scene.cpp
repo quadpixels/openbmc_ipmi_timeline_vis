@@ -62,8 +62,14 @@ void HelloTriangleScene::Render() {
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
+
+  // Not supported in WebGL, b/c it's deprecated in newer versions of OpenGL
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=1560771
+  float orig_line_width;
+  glGetFloatv(GL_LINE_WIDTH, &orig_line_width);
   glLineWidth(2);
   glDrawArrays(GL_LINES, 0, 6);
+  glLineWidth(orig_line_width);
   
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glDisableVertexAttribArray(0);

@@ -122,14 +122,19 @@ public:
   };
 
   struct Projectile {
+    constexpr static float kLineLength = 12.0f;
+    constexpr static float kSpeed = 100.0f;
     static ChunkIndex* chunk_index;
     Sprite* sprite;  // The projectile itself
     Sprite *from_sprite, *to_sprite;  // targets
-    glm::vec3 pos, dir, p0, p1;
+    glm::vec3 p0, p1; // 尾迹
     void Render();
     void Update(float secs);
-    float lifetime, total_lifetime;
-
+    float projectile_lifetime, projectile_total_lifetime;
+    float trail_lifetime, trail_total_lifetime;
+    bool IsProjectileVisible();
+    bool IsTrailVisible();
+    bool Done();
     Projectile(Sprite* from, Sprite* to);
   };
 

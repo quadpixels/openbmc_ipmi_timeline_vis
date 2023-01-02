@@ -8,6 +8,10 @@
 #include "util.hpp"
 #include "scene.hpp"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 GLFWwindow* g_window;
 double g_last_secs = 0;
 
@@ -89,16 +93,11 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-  MyCheckError("glfwInit");
-
   glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
-  MyCheckError("set window hint");
-
   g_window = glfwCreateWindow(WIN_W, WIN_H, __FILE__, NULL, NULL);
-  MyCheckError("created window");
 
   // https://discourse.glfw.org/t/invalid-enum-after-glfwmakecontextcurrent/170
   // Happens on ZX C960, ignoring

@@ -45,9 +45,11 @@ main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget
 		--preload-file shaders/simple_texture.fs \
 		--preload-file shaders/vert_mvp_palette.vs \
 		--preload-file shaders/vert_norm_data_ao.fs \
-		--preload-file shaders/vert_norm_data_ao.vs
+		--preload-file shaders/vert_norm_data_ao.vs \
+		--preload-file shaders/draw_lines.fs \
+		--preload-file shaders/draw_lines.vs
 
 clean:
 	@for x in util.o scene.o rendertarget.o chunk.o camera.o\
-	  chunkindex.o dbus_pcap_scene.o sprite.o \
+	  chunkindex.o dbus_pcap_scene.o sprite.o main_gles.js \
 	  main_gles; do [ -f $$x ] && rm -v $$x ; done

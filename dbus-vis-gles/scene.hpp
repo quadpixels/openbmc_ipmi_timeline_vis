@@ -121,7 +121,26 @@ public:
     }
   };
 
+  struct Projectile {
+    static ChunkIndex* chunk_index;
+    Sprite* sprite;  // The projectile itself
+    Sprite *from_sprite, *to_sprite;  // targets
+    glm::vec3 pos, dir, p0, p1;
+    void Render();
+    void Update(float secs);
+    float lifetime, total_lifetime;
+
+    Projectile(Sprite* from, Sprite* to);
+  };
+
   std::vector<struct SpriteAndProperty*> sprites;
+  std::vector<struct Projectile*> projectiles;
+
+  // 画线用
+  unsigned int lines_vbo;
+  const static int kNumMaxLines = 10000;
+  std::vector<float> lines_buf;
+  unsigned int line_drawing_program;
 
   DBusPCAPScene();
 
@@ -137,4 +156,5 @@ public:
   void Render();
   void Update(float secs);
   void Test1();
+  void Test2();
 };

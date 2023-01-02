@@ -52,6 +52,11 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         g_dbuspcap_scene->Test1();
       }
     }
+    case GLFW_KEY_W: {
+      if (g_curr_scene == g_dbuspcap_scene) {
+        g_dbuspcap_scene->Test2();
+      }
+    }
     default: break;
     }
   }

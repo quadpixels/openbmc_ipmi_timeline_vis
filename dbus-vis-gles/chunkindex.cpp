@@ -128,6 +128,11 @@ void ChunkGrid::Init(unsigned _xlen, unsigned _ylen, unsigned _zlen) {
   }
 }
 
+ChunkGrid::ChunkGrid(unsigned _xlen, unsigned _ylen, unsigned _zlen)
+  : ChunkIndex(_xlen, _ylen, _zlen) {
+  Init(_xlen, _ylen, _zlen);
+}
+
 ChunkGrid::ChunkGrid(const char* vox_fn) {
   FILE* f = fopen(vox_fn, "rb");
 
@@ -208,6 +213,8 @@ bool ChunkGrid::IntersectPoint(const glm::vec3& p) {
   assert(0 && "Not implemented");
   return false;
 }
+
+
 
 ChunkGrid::ChunkGrid(const ChunkGrid& other) {
   chunks.resize(other.chunks.size());

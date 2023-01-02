@@ -17,7 +17,23 @@ DBusPCAPScene::DBusPCAPScene() {
   openbmc_sprite->pos = glm::vec3(0, 10, 0);
   openbmc_sprite->RotateAroundGlobalAxis(glm::vec3(1,0,0), 90);
 
+  if (Projectile::chunk_index == nullptr) {
+    ChunkIndex* ci = new ChunkGrid(1,1,1);
+    ci->SetVoxel(0,0,0,1);
+    Projectile::chunk_index = ci;
+  }
+
+  glGenBuffers(1, &lines_vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, lines_vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float)*6*kNumMaxLines, NULL, GL_STREAM_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  MyCheckError("Initialize DBusPCAPScene");
+  lines_buf.resize(kNumMaxLines * 6);
+  line_drawing_program = BuildShaderProgram("shaders/draw_lines.vs", "shaders/draw_lines.fs");
+
   Test1();
+  Test1();
+  Test2();
 }
 
 void DBusPCAPScene::Render() {
@@ -50,6 +66,9 @@ void DBusPCAPScene::Render() {
   for (const auto& s : sprites) {
     s->sprite->Render();
   }
+  for (const auto& p : projectiles) {
+    p->sprite->Render();
+  }
   depth_fbo->Unbind();
 
   // Normal pass
@@ -68,15 +87,61 @@ void DBusPCAPScene::Render() {
   for (const auto &s : sprites) {
     s->sprite->Render();
   }
+  for (const auto& p : projectiles) {
+    p->sprite->Render();
+  }
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, 0);
   glUseProgram(0);
+
+  // Lines pass
+  glUseProgram(line_drawing_program);
+  int idx = 0;
+  int num_lines = 0;
+  for (const auto& p : projectiles) {
+    lines_buf[idx++] = p->p0.x;
+    lines_buf[idx++] = p->p0.y;
+    lines_buf[idx++] = p->p0.z;
+    lines_buf[idx++] = p->p1.x;
+    lines_buf[idx++] = p->p1.y;
+    lines_buf[idx++] = p->p1.z;
+    printf("(%g,%g,%g) -- (%g,%g,%g)\n",
+      p->p0.x, p->p0.y, p->p0.z,
+      p->p1.x, p->p1.y, p->p1.z);
+    num_lines ++;
+    if (num_lines >= kNumMaxLines) break;
+  }
+  v_loc = glGetUniformLocation(line_drawing_program, "V");
+  p_loc = glGetUniformLocation(line_drawing_program, "P");
+  glUniformMatrix4fv(v_loc, 1, false, &V[0][0]);
+  glUniformMatrix4fv(p_loc, 1, false, &P[0][0]);
+  glBindBuffer(GL_ARRAY_BUFFER, lines_vbo);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float)*idx, lines_buf.data());
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), NULL);
+  glEnableVertexAttribArray(0);
+  glDisableVertexAttribArray(1);
+  glDrawArrays(GL_LINES, 0, idx);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glUseProgram(0);
+
   MyCheckError("dbus pcap scene render");
 }
 
 void DBusPCAPScene::Update(float secs) {
   openbmc_sprite->RotateAroundGlobalAxis(glm::vec3(0,1,0), secs*120);
+  std::vector<Projectile*> pnext;
+  for (Projectile* p : projectiles) {
+    p->lifetime -= secs;
+    if (p->lifetime <= 0) {
+      p->lifetime = 0;
+      delete p;
+    } else {
+      pnext.push_back(p);
+      p->Update(secs);
+    }
+  }
+  projectiles = pnext;
 }
 
 DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::CreateSprite(DBusPCAPScene::AssetID asset_id, const glm::vec3& pos) {
@@ -92,3 +157,48 @@ void DBusPCAPScene::Test1() {
   glm::vec3 p(RandRange(-50, 50), 8, RandRange(-50, 50));
   CreateSprite(AssetID::HwMon, p);
 }
+
+void DBusPCAPScene::Test2() {
+  int idx0 = -1, idx1 = -1;
+  if (sprites.size() < 2) return;
+  idx0 = rand() % sprites.size();
+  while (true) {
+    idx1 = rand() % sprites.size();
+    if (idx0 != idx1) break;
+  }
+
+  SpriteAndProperty *sp0 = sprites[idx0], *sp1 = sprites[idx1];
+  Projectile* proj = new Projectile(sp0->sprite, sp1->sprite);
+  projectiles.push_back(proj);
+}
+
+DBusPCAPScene::Projectile::Projectile(Sprite* from, Sprite* to) {
+  from_sprite = from; to_sprite = to;
+  sprite = new ChunkSprite(chunk_index);
+
+  const float SPEED = 4.0f;
+  glm::vec3 p0p1 = to_sprite->pos - from_sprite->pos;
+  const float p0p1_len = p0p1.length();
+  total_lifetime = lifetime = p0p1_len / SPEED;
+}
+
+void DBusPCAPScene::Projectile::Update(float secs) {
+  // 右(+x) 朝向目标
+  p0 = from_sprite->pos; p1 = to_sprite->pos;
+  glm::vec3 local_x = glm::normalize(p1 - p0);
+  glm::vec3 y(0, 1, 0);
+  glm::vec3 local_z = glm::normalize(glm::cross(y, local_x));
+  glm::vec3 local_y = glm::normalize(glm::cross(local_z, local_x));
+  sprite->orientation[0] = local_x;
+  sprite->orientation[1] = local_y;
+  sprite->orientation[2] = local_z;
+
+  lifetime -= secs;
+  if (lifetime < 0) lifetime = 0;
+
+  const float t = 1.0f - (lifetime / total_lifetime);
+
+  sprite->pos = glm::mix(p0, p1, t);
+}
+
+ChunkIndex* DBusPCAPScene::Projectile::chunk_index = nullptr;

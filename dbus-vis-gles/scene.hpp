@@ -109,6 +109,9 @@ class DBusPCAPScene : public Scene {  // Putting everything together . . .
 public:
   std::mutex mtx;
   constexpr static float kSceneRadius = 60;  // float cannot be const, must be constexpr.
+  constexpr static float kRepulsionDistThresh = 15;
+  constexpr static float kRepulsionFactor = 100;
+  constexpr static float kDampening = 0.95f;
   // Load assets
   enum AssetID {
     OpenBMC = 0,

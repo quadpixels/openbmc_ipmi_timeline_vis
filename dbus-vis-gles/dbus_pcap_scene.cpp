@@ -124,6 +124,31 @@ void DBusPCAPScene::Render() {
     num_lines ++;
     if (num_lines >= kNumMaxLines) break;
   }
+
+  if (num_lines + 4 < kNumMaxLines) {
+    const float arena_coords[] = {
+      -kSceneRadius, 0, -kSceneRadius,
+      -kSceneRadius, 0,  kSceneRadius,
+       kSceneRadius, 0,  kSceneRadius,
+       kSceneRadius, 0, -kSceneRadius,
+    };
+    for (int i=0; i<4; i++) {
+      const float x0 = arena_coords[i*3];
+      const float y0 = arena_coords[i*3 + 1];
+      const float z0 = arena_coords[i*3 + 2];
+      const float x1 = arena_coords[(i*3+3) % 12];
+      const float y1 = arena_coords[(i*3+4) % 12];
+      const float z1 = arena_coords[(i*3+5) % 12];
+      lines_buf[idx++] = x0;
+      lines_buf[idx++] = y0;
+      lines_buf[idx++] = z0;
+      lines_buf[idx++] = x1;
+      lines_buf[idx++] = y1;
+      lines_buf[idx++] = z1;
+      num_lines ++;
+    }
+  }
+
   v_loc = glGetUniformLocation(line_drawing_program, "V");
   p_loc = glGetUniformLocation(line_drawing_program, "P");
   glUniformMatrix4fv(v_loc, 1, false, &V[0][0]);
@@ -164,9 +189,35 @@ void DBusPCAPScene::Update(float secs) {
       spnext.push_back(sp);
     }
   }
-  sprites = spnext;
 
+  const int NS = int(sprites.size());
+  for (int i=0; i<NS; i++) {
+    SpriteAndProperty* sp = sprites[i];
+    if (sp->usage != SpriteAndProperty::Usage::MovingSprite) continue;
+    for (int j=i+1; j<NS; j++) {
+      SpriteAndProperty* sp1 = sprites[j];
+      if (sp1->usage != SpriteAndProperty::Usage::MovingSprite) continue;
+      glm::vec3 p0p1 = sp1->sprite->pos - sp->sprite->pos;
+      float l = glm::length(p0p1);
+      if (l < kRepulsionDistThresh) {
+        glm::vec3 delta_v = glm::normalize(p0p1) * kRepulsionFactor * (kRepulsionDistThresh - l) * secs;
+        sp1->sprite->vel += delta_v;
+        sp->sprite->vel -= delta_v;
+      }
+    }
+  }
+
+  float damp = pow(kDampening, secs / 0.016f);
+  for (SpriteAndProperty* sp : spnext) {
+    sp->sprite->pos += sp->sprite->vel * secs;
+    sp->sprite->vel *= damp;
+  }
+
+  // 越界的情况的处理
+
+  sprites = spnext;
   projectiles = pnext;
+
   mtx.unlock();
 }
 
@@ -181,7 +232,8 @@ DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::CreateSprite(DBusPCAPScene::Ass
 
 void DBusPCAPScene::Test1() {
   glm::vec3 p(RandRange(-50, 50), 8, RandRange(-50, 50));
-  CreateSprite(AssetID::HwMon, p);
+  SpriteAndProperty* sp = CreateSprite(AssetID::HwMon, p);
+  sp->usage = SpriteAndProperty::Usage::MovingSprite;
 }
 
 void DBusPCAPScene::Test2() {
@@ -296,6 +348,12 @@ DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::DBusServiceFadeIn(const std::st
     SpriteAndProperty* s = CreateSprite(asset_id, p);
     s->usage = SpriteAndProperty::Usage::MovingSprite;
     s->sprite->pos.y = s->sprite->chunk->GetCentroid().y + 1;
+
+    // 特例：把mapper缩小一点
+    if (asset_id == AssetID::ObjectMapper) {
+      s->sprite->scale *= 0.75;
+    }
+
     dbus_services[service] = s;
     ret = s;
   }

@@ -212,6 +212,7 @@ int main(int argc, char** argv) {
     printf("glfwInit returned false\n");
     exit(1);
   }
+  srand(time(NULL));
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);

@@ -12,6 +12,7 @@
 class Sprite {
 public:
   glm::vec3 pos, vel;
+  Sprite() : pos(0), vel(0) {}
   glm::mat3 orientation;
   virtual void Render() = 0;
   virtual void Update(float);
@@ -22,7 +23,7 @@ public:
 
 class ChunkSprite : public Sprite {
 public:
-  ChunkSprite(ChunkIndex* _c) : chunk(_c) { Init(); }
+  ChunkSprite(ChunkIndex* _c) : Sprite(), chunk(_c) { Init(); }
   void Init();
   glm::vec3 GetLocalCoord(const glm::vec3& p_world);
   virtual bool IntersectPoint(const glm::vec3& p_world);

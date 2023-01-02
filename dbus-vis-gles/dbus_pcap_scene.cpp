@@ -120,9 +120,6 @@ void DBusPCAPScene::Render() {
     lines_buf[idx++] = p->p1.x;
     lines_buf[idx++] = p->p1.y;
     lines_buf[idx++] = p->p1.z;
-    printf("%d. (%g,%g,%g) -> (%g,%g,%g)\n",
-      num_lines,
-      p->p0.x, p->p0.y, p->p0.z, p->p1.x, p->p1.y, p->p1.z);
     num_lines ++;
     if (num_lines >= kNumMaxLines) break;
   }

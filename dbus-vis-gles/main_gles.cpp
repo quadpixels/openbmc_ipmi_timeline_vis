@@ -11,6 +11,8 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #else
+#include <fstream>
+#include <functional>
 #include <thread>
 #include "pcap_analyzer.hpp"
 #endif
@@ -90,6 +92,17 @@ void emscriptenLoop() {
   g_last_secs = secs;
 }
 
+#ifndef __EMSCRIPTEN__
+void StartPCAPReplayThread(const char* filename) {
+  std::vector<uint8_t> buf;
+  std::ifstream is(filename);
+  while (is.good()) {
+    buf.push_back(is.get());
+  }
+  ProcessByteArray(buf);
+}
+#endif
+
 int main(int argc, char** argv) {
   if (glfwInit() == GLFW_FALSE) {
     printf("glfwInit returned false\n");
@@ -125,9 +138,14 @@ int main(int argc, char** argv) {
   g_curr_scene = g_dbuspcap_scene;
 
   #ifndef __EMSCRIPTEN__
+  std::thread* pcap_replay_thread = nullptr;
+  if (argc > 1) {
+    pcap_replay_thread = new std::thread(std::bind(StartPCAPReplayThread, argv[1]));
+  }
   while (!glfwWindowShouldClose(g_window)) {
     emscriptenLoop();
   }
+  if (pcap_replay_thread) pcap_replay_thread->join();
   #else
   emscripten_set_main_loop(emscriptenLoop, 0, 1);
   #endif

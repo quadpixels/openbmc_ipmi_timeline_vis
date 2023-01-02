@@ -47,6 +47,7 @@ DBusPCAPScene::DBusPCAPScene() {
 }
 
 void DBusPCAPScene::Render() {
+  mtx.lock();
   glEnable(GL_DEPTH_TEST);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glUseProgram(Chunk::shader_program);
@@ -119,7 +120,8 @@ void DBusPCAPScene::Render() {
     lines_buf[idx++] = p->p1.x;
     lines_buf[idx++] = p->p1.y;
     lines_buf[idx++] = p->p1.z;
-    printf("(%g,%g,%g) -> (%g,%g,%g)\n",
+    printf("%d. (%g,%g,%g) -> (%g,%g,%g)\n",
+      num_lines,
       p->p0.x, p->p0.y, p->p0.z, p->p1.x, p->p1.y, p->p1.z);
     num_lines ++;
     if (num_lines >= kNumMaxLines) break;
@@ -133,14 +135,16 @@ void DBusPCAPScene::Render() {
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), NULL);
   glEnableVertexAttribArray(0);
   glDisableVertexAttribArray(1);
-  glDrawArrays(GL_LINES, 0, idx);
+  glDrawArrays(GL_LINES, 0, num_lines*2);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glUseProgram(0);
 
   MyCheckError("dbus pcap scene render");
+  mtx.unlock();
 }
 
 void DBusPCAPScene::Update(float secs) {
+  mtx.lock();
   openbmc_sprite->RotateAroundGlobalAxis(glm::vec3(0,1,0), secs*120);
   std::vector<Projectile*> pnext;
   for (Projectile* p : projectiles) {
@@ -165,6 +169,7 @@ void DBusPCAPScene::Update(float secs) {
   sprites = spnext;
 
   projectiles = pnext;
+  mtx.unlock();
 }
 
 DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::CreateSprite(DBusPCAPScene::AssetID asset_id, const glm::vec3& pos) {
@@ -276,6 +281,7 @@ void DBusPCAPScene::Projectile::Update(float secs) {
 }
 
 void DBusPCAPScene::DBusServiceFadeIn(const std::string& service) {
+  mtx.lock();
   if (dbus_services.find(service) == dbus_services.end()) {
     const float pad = 2, r = kSceneRadius - pad;
     glm::vec3 p(RandRange(-r, r), 0, RandRange(-r, r));
@@ -283,14 +289,17 @@ void DBusPCAPScene::DBusServiceFadeIn(const std::string& service) {
     s->usage = SpriteAndProperty::Usage::MovingSprite;
     s->sprite->pos.y = s->sprite->chunk->GetCentroid().y + 1;
   }
+  mtx.unlock();
 }
 
 void DBusPCAPScene::DBusServiceFadeOut(const std::string& service) {
+  mtx.lock();
   if (dbus_services.find(service) != dbus_services.end()) {
     auto itr = dbus_services.find(service);
     itr->second->marked_for_deletion = true;
     dbus_services.erase(itr);
   }
+  mtx.unlock();
 }
 
 ChunkIndex* DBusPCAPScene::Projectile::chunk_index = nullptr;

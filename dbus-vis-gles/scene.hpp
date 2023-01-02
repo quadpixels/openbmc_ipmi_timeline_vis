@@ -178,7 +178,8 @@ public:
   void Test2();
 
   // Exercise these two functions with DBus activity
-  void DBusServiceFadeIn(const std::string& service);
+  SpriteAndProperty* GetOrCreateDBusServiceSprite(const std::string& service);
+  SpriteAndProperty* DBusServiceFadeIn(const std::string& service);
   void DBusServiceFadeOut(const std::string& service);
   void DBusMakeMethodCall(const std::string& from, const std::string& to);
   void DBusEmitSignal(const std::string& from);

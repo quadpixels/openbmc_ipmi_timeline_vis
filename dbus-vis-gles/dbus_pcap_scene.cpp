@@ -277,16 +277,20 @@ void DBusPCAPScene::Projectile::Update(float secs) {
   }
 }
 
-void DBusPCAPScene::DBusServiceFadeIn(const std::string& service) {
+DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::DBusServiceFadeIn(const std::string& service) {
   mtx.lock();
+  SpriteAndProperty* ret;
   if (dbus_services.find(service) == dbus_services.end()) {
     const float pad = 2, r = kSceneRadius - pad;
     glm::vec3 p(RandRange(-r, r), 0, RandRange(-r, r));
     SpriteAndProperty* s = CreateSprite(AssetID::DefaultDaemon, p);
     s->usage = SpriteAndProperty::Usage::MovingSprite;
     s->sprite->pos.y = s->sprite->chunk->GetCentroid().y + 1;
+    dbus_services[service] = s;
+    ret = s;
   }
   mtx.unlock();
+  return ret;
 }
 
 void DBusPCAPScene::DBusServiceFadeOut(const std::string& service) {
@@ -296,6 +300,24 @@ void DBusPCAPScene::DBusServiceFadeOut(const std::string& service) {
     itr->second->marked_for_deletion = true;
     dbus_services.erase(itr);
   }
+  mtx.unlock();
+}
+
+DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::GetOrCreateDBusServiceSprite(const std::string& service) {
+  SpriteAndProperty* ret;
+  if (dbus_services.find(service) != dbus_services.end()) {
+    return dbus_services.at(service);
+  } else {
+    return DBusServiceFadeIn(service);
+  }
+}
+
+void DBusPCAPScene::DBusMakeMethodCall(const std::string& from, const std::string& to) {
+  DBusPCAPScene::SpriteAndProperty *sp_from = GetOrCreateDBusServiceSprite(from);
+  DBusPCAPScene::SpriteAndProperty *sp_to = GetOrCreateDBusServiceSprite(to);
+  mtx.lock();
+  Projectile* proj = new Projectile(sp_from->sprite, sp_to->sprite);
+  projectiles.push_back(proj);
   mtx.unlock();
 }
 

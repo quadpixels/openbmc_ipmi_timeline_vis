@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
@@ -94,7 +95,18 @@ void emscriptenLoop() {
 }
 
 #ifndef __EMSCRIPTEN__
-
+struct DBusVisEvent {
+  enum MessageType {
+    MethodCall,
+    Signal,
+    ServiceFadeIn, // FadeIn 和 FadeOut 要事后计算出来
+    ServiceFadeOut,
+  };
+  double timestamp;
+  MessageType type;
+  std::string arg1, arg2;
+};
+static std::vector<struct DBusVisEvent> g_dbus_vis_events;
 // For replay
 void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, const unsigned char* packet) {
 	const struct timeval& ts = pkthdr->ts;
@@ -145,10 +157,16 @@ void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, cons
     
     if (fixed.type == MessageType::METHOD_CALL) {
       printf("MC @ %g: %s -> %s\n", sec, sender.c_str(), destination.c_str());
+      DBusVisEvent evt;
+      evt.type = DBusVisEvent::MessageType::MethodCall;
+      evt.arg1 = sender; evt.arg2 = destination;
+      evt.timestamp = sec;
+      g_dbus_vis_events.push_back(evt);
     }
 	}
 }
 
+void StartReplayingMessages();
 void StartPCAPReplayThread(const char* filename) {
   std::vector<uint8_t> buf;
   std::ifstream is(filename);
@@ -157,6 +175,36 @@ void StartPCAPReplayThread(const char* filename) {
   }
   SetPCAPCallback(MyCallback);
   ProcessByteArray(buf);
+
+  printf("%zu events. Sleeping for 2s before replaying . . .\n",
+    g_dbus_vis_events.size());
+  sleep(2);
+
+  StartReplayingMessages();
+}
+
+void StartReplayingMessages() {
+  if (g_dbus_vis_events.empty()) return;
+  double replay_t0 = glfwGetTime();
+  double msg_t0 = g_dbus_vis_events[0].timestamp;
+  int idx = 0;
+  while (idx < int(g_dbus_vis_events.size())) {
+    double replay_elapsed = glfwGetTime() - replay_t0;
+    struct DBusVisEvent& evt = g_dbus_vis_events[idx];
+    double diff_sec = (evt.timestamp - msg_t0) - replay_elapsed;
+    if (diff_sec < 0) diff_sec = 0;
+    printf("idx=%d, sleep time=%g\n", idx, diff_sec);
+    if (diff_sec > 0)
+      usleep(diff_sec * 1000000.0f);
+
+    switch (evt.type) {
+      case DBusVisEvent::MessageType::MethodCall: {
+        g_dbuspcap_scene->DBusMakeMethodCall(evt.arg1, evt.arg2);
+        break;
+      }
+    }
+    idx++;
+  }
 }
 #endif
 

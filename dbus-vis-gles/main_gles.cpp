@@ -193,7 +193,6 @@ void StartReplayingMessages() {
     struct DBusVisEvent& evt = g_dbus_vis_events[idx];
     double diff_sec = (evt.timestamp - msg_t0) - replay_elapsed;
     if (diff_sec < 0) diff_sec = 0;
-    printf("idx=%d, sleep time=%g\n", idx, diff_sec);
     if (diff_sec > 0)
       usleep(diff_sec * 1000000.0f);
 

@@ -58,6 +58,7 @@ void main()
 {
   gl_Position = P * V * M * vec4(position, 1.0f);
   vert_color = default_palette[int(properties.y)];
+  vert_color *= (1.0f - properties.z * 0.2);
   normal     = default_normals[int(properties.x)];
 
   vec3 frag = vec3(M * vec4(position, 1.0f));

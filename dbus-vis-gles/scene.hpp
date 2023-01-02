@@ -115,6 +115,7 @@ public:
     HwMon,
     Background,
     DefaultDaemon,
+    ObjectMapper,
   };
   std::unordered_map<AssetID, ChunkIndex*> chunk_assets;
 

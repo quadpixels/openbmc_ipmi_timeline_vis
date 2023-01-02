@@ -1,5 +1,9 @@
 // 2023-01-01
 
+#include <algorithm>
+#include <cctype>
+#include <string>
+
 #include "scene.hpp"
 
 extern int WIN_W, WIN_H;
@@ -16,6 +20,7 @@ DBusPCAPScene::DBusPCAPScene() {
   chunk_assets[AssetID::HwMon] = new ChunkGrid("vox/hwmon.vox");
   chunk_assets[AssetID::Background] = new ChunkGrid("vox/bg.vox");
   chunk_assets[AssetID::DefaultDaemon] = new ChunkGrid("vox/defaultdaemon.vox");
+  chunk_assets[AssetID::ObjectMapper] = new ChunkGrid("vox/mapper.vox");
 
   SpriteAndProperty* sp = CreateSprite(AssetID::OpenBMC, glm::vec3(0,2,0));
   sp->usage = SpriteAndProperty::Usage::Background;
@@ -40,10 +45,6 @@ DBusPCAPScene::DBusPCAPScene() {
   MyCheckError("Initialize DBusPCAPScene");
   lines_buf.resize(kNumMaxLines * 6);
   line_drawing_program = BuildShaderProgram("shaders/draw_lines.vs", "shaders/draw_lines.fs");
-
-  DBusServiceFadeIn(":1.123");
-  DBusServiceFadeIn(":1.124");
-  DBusServiceFadeIn(":1.125");
 }
 
 void DBusPCAPScene::Render() {
@@ -277,13 +278,22 @@ void DBusPCAPScene::Projectile::Update(float secs) {
   }
 }
 
+
+
 DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::DBusServiceFadeIn(const std::string& service) {
   mtx.lock();
   SpriteAndProperty* ret;
   if (dbus_services.find(service) == dbus_services.end()) {
+    printf("%s fade in\n", service.c_str());
     const float pad = 2, r = kSceneRadius - pad;
     glm::vec3 p(RandRange(-r, r), 0, RandRange(-r, r));
-    SpriteAndProperty* s = CreateSprite(AssetID::DefaultDaemon, p);
+
+    AssetID asset_id = AssetID::DefaultDaemon;
+    if (service == "xyz.openbmc_project.ObjectMapper") {
+      asset_id = AssetID::ObjectMapper;
+    }
+
+    SpriteAndProperty* s = CreateSprite(asset_id, p);
     s->usage = SpriteAndProperty::Usage::MovingSprite;
     s->sprite->pos.y = s->sprite->chunk->GetCentroid().y + 1;
     dbus_services[service] = s;

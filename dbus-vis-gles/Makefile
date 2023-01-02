@@ -1,6 +1,9 @@
 all: main_gles
 
-CXXFLAGS=-g
+CXXFLAGS=-g -std=c++17
+
+pcap_analyzer.o: pcap_analyzer.cpp
+	g++ $< -c $(CXXFLAGS) -o $@
 
 sprite.o: sprite.cpp
 	g++ $< -c $(CXXFLAGS) -o $@
@@ -26,8 +29,8 @@ util.o: util.cpp
 scene.o: scene.cpp
 	g++ $< -c $(CXXFLAGS) -o $@
 
-main_gles: main_gles.cpp util.o scene.o camera.o chunk.o rendertarget.o chunkindex.o sprite.o dbus_pcap_scene.o
-	g++ $^ $(CXXFLAGS) -o main_gles -lglfw -lGLESv2
+main_gles: main_gles.cpp util.o scene.o camera.o chunk.o rendertarget.o chunkindex.o sprite.o dbus_pcap_scene.o pcap_analyzer.o
+	g++ $^ $(CXXFLAGS) -o main_gles -lglfw -lGLESv2 -lpcap -lpthread
 
 main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget.cpp chunkindex.cpp sprite.cpp dbus_pcap_scene.cpp
 	@echo "Will need to first activate the Emscripten SDK."
@@ -38,6 +41,8 @@ main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget
 		--preload-file vox/hwmon.vox \
 		--preload-file vox/openbmc.vox \
 		--preload-file vox/player.vox \
+		--preload-file vox/bg.vox \
+		--preload-file vox/defaultdaemon.vox \
 		--preload-file shaders/hellotriangle.fs \
 		--preload-file shaders/hellotriangle.vs \
 		--preload-file shaders/palettescene.vs \
@@ -52,4 +57,5 @@ main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget
 clean:
 	@for x in util.o scene.o rendertarget.o chunk.o camera.o\
 	  chunkindex.o dbus_pcap_scene.o sprite.o main_gles.js \
+	  pcap_analyzer.o \
 	  main_gles; do [ -f $$x ] && rm -v $$x ; done

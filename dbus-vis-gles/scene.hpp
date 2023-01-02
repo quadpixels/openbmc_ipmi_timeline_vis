@@ -1,5 +1,6 @@
 // 2022-12-30
 
+#include <mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -106,19 +107,30 @@ public:
 
 class DBusPCAPScene : public Scene {  // Putting everything together . . .
 public:
+  std::mutex mtx;
+  constexpr static float kSceneRadius = 60;  // float cannot be const, must be constexpr.
   // Load assets
   enum AssetID {
     OpenBMC = 0,
-    HwMon = 1,
+    HwMon,
+    Background,
+    DefaultDaemon,
   };
   std::unordered_map<AssetID, ChunkIndex*> chunk_assets;
 
   struct SpriteAndProperty {
+    SpriteAndProperty() : marked_for_deletion(false) {}
     ChunkSprite* sprite;
     std::string dbus_service_name;
     ~SpriteAndProperty() {
       delete sprite;
     }
+    enum Usage {
+      Background = 0,
+      MovingSprite = 1,
+    };
+    Usage usage;
+    bool marked_for_deletion;
   };
 
   struct Projectile {
@@ -140,6 +152,7 @@ public:
 
   std::vector<struct SpriteAndProperty*> sprites;
   std::vector<struct Projectile*> projectiles;
+  std::unordered_map<std::string, struct SpriteAndProperty*> dbus_services;
 
   // 画线用
   unsigned int lines_vbo;
@@ -151,6 +164,7 @@ public:
 
   SpriteAndProperty* CreateSprite(AssetID asset_id, const glm::vec3& pos);
   ChunkSprite* openbmc_sprite;
+  ChunkSprite* bg_sprite;
   
   OneChunkScene::Backdrop* backdrop;
   Camera camera;
@@ -162,4 +176,10 @@ public:
   void Update(float secs);
   void Test1();
   void Test2();
+
+  // Exercise these two functions with DBus activity
+  void DBusServiceFadeIn(const std::string& service);
+  void DBusServiceFadeOut(const std::string& service);
+  void DBusMakeMethodCall(const std::string& from, const std::string& to);
+  void DBusEmitSignal(const std::string& from);
 };

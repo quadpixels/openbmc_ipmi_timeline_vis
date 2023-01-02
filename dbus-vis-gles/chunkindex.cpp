@@ -36,7 +36,7 @@ void ChunkGrid::Render(
 
   for (int xx=0; xx < xdim; xx++) {
     for (int yy=0; yy < ydim; yy++) {
-      for (int zz=0; zz < ydim; zz++) {
+      for (int zz=0; zz < zdim; zz++) {
         glm::vec3 tr(float(xx * Chunk::kSize),
                      float(yy * Chunk::kSize),
                      float(zz * Chunk::kSize));

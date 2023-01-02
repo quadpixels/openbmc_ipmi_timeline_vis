@@ -10,6 +10,9 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#else
+#include <thread>
+#include "pcap_analyzer.hpp"
 #endif
 
 GLFWwindow* g_window;
@@ -119,7 +122,7 @@ int main(int argc, char** argv) {
   printf("OpenGL Shading Language Version: %s\n", sz3);
 
   MyInit();
-  g_curr_scene = g_hellotriangle;
+  g_curr_scene = g_dbuspcap_scene;
 
   #ifndef __EMSCRIPTEN__
   while (!glfwWindowShouldClose(g_window)) {

@@ -6,16 +6,26 @@ extern int WIN_W, WIN_H;
 
 DBusPCAPScene::DBusPCAPScene() {
   backdrop = new OneChunkScene::Backdrop(256, 251);
+  backdrop->pos = glm::vec3(0, -10, 0);
+
   directional_light = new DirectionalLight(glm::vec3(-1,-3,1), glm::vec3(1,3,-1)*50.0f);
   depth_fbo = new DepthOnlyFBO(WIN_W, WIN_H);
   projection_matrix = glm::perspective(60.0f*3.14159f/180.0f, WIN_W*1.0f/WIN_H, 0.1f, 499.0f);
 
   chunk_assets[AssetID::OpenBMC] = new ChunkGrid("vox/openbmc.vox");
   chunk_assets[AssetID::HwMon] = new ChunkGrid("vox/hwmon.vox");
+  chunk_assets[AssetID::Background] = new ChunkGrid("vox/bg.vox");
+  chunk_assets[AssetID::DefaultDaemon] = new ChunkGrid("vox/defaultdaemon.vox");
 
-  openbmc_sprite = CreateSprite(AssetID::OpenBMC, glm::vec3(0,2,0))->sprite;
+  SpriteAndProperty* sp = CreateSprite(AssetID::OpenBMC, glm::vec3(0,2,0));
+  sp->usage = SpriteAndProperty::Usage::Background;
+  openbmc_sprite = sp->sprite;
   openbmc_sprite->pos = glm::vec3(0, 10, 0);
   openbmc_sprite->RotateAroundGlobalAxis(glm::vec3(1,0,0), 90);
+
+  sp = CreateSprite(AssetID::Background, glm::vec3(0,2,0));
+  sp->usage = SpriteAndProperty::Usage::Background;
+  bg_sprite = sp->sprite;
 
   if (Projectile::chunk_index == nullptr) {
     ChunkIndex* ci = new ChunkGrid(3,3,3);
@@ -31,9 +41,9 @@ DBusPCAPScene::DBusPCAPScene() {
   lines_buf.resize(kNumMaxLines * 6);
   line_drawing_program = BuildShaderProgram("shaders/draw_lines.vs", "shaders/draw_lines.fs");
 
-  Test1();
-  Test1();
-  Test2();
+  DBusServiceFadeIn(":1.123");
+  DBusServiceFadeIn(":1.124");
+  DBusServiceFadeIn(":1.125");
 }
 
 void DBusPCAPScene::Render() {
@@ -109,6 +119,8 @@ void DBusPCAPScene::Render() {
     lines_buf[idx++] = p->p1.x;
     lines_buf[idx++] = p->p1.y;
     lines_buf[idx++] = p->p1.z;
+    printf("(%g,%g,%g) -> (%g,%g,%g)\n",
+      p->p0.x, p->p0.y, p->p0.z, p->p1.x, p->p1.y, p->p1.z);
     num_lines ++;
     if (num_lines >= kNumMaxLines) break;
   }
@@ -141,6 +153,17 @@ void DBusPCAPScene::Update(float secs) {
       delete p;
     }
   }
+
+  std::vector<SpriteAndProperty*> spnext;
+  for (SpriteAndProperty* sp : sprites) {
+    if (sp->marked_for_deletion) {
+      delete sp;
+    } else {
+      spnext.push_back(sp);
+    }
+  }
+  sprites = spnext;
+
   projectiles = pnext;
 }
 
@@ -160,11 +183,19 @@ void DBusPCAPScene::Test1() {
 
 void DBusPCAPScene::Test2() {
   int idx0 = -1, idx1 = -1;
-  if (sprites.size() < 2) return;
+  
+  int num_moving_sprites = 0;
+  for (SpriteAndProperty* sp : sprites) {
+    if (sp->usage == SpriteAndProperty::Usage::MovingSprite) num_moving_sprites++;
+  }
+  if (num_moving_sprites<2) return;
+
   idx0 = rand() % sprites.size();
   while (true) {
     idx1 = rand() % sprites.size();
-    if (idx0 != idx1) break;
+    if (sprites[idx1]->usage == SpriteAndProperty::Usage::MovingSprite) {
+      if (idx0 != idx1) break;
+    }
   }
 
   SpriteAndProperty *sp0 = sprites[idx0], *sp1 = sprites[idx1];
@@ -241,6 +272,24 @@ void DBusPCAPScene::Projectile::Update(float secs) {
     if (traveled > dist) {
       p0 = to_pos; // case 3
     }
+  }
+}
+
+void DBusPCAPScene::DBusServiceFadeIn(const std::string& service) {
+  if (dbus_services.find(service) == dbus_services.end()) {
+    const float pad = 2, r = kSceneRadius - pad;
+    glm::vec3 p(RandRange(-r, r), 0, RandRange(-r, r));
+    SpriteAndProperty* s = CreateSprite(AssetID::DefaultDaemon, p);
+    s->usage = SpriteAndProperty::Usage::MovingSprite;
+    s->sprite->pos.y = s->sprite->chunk->GetCentroid().y + 1;
+  }
+}
+
+void DBusPCAPScene::DBusServiceFadeOut(const std::string& service) {
+  if (dbus_services.find(service) != dbus_services.end()) {
+    auto itr = dbus_services.find(service);
+    itr->second->marked_for_deletion = true;
+    dbus_services.erase(itr);
   }
 }
 

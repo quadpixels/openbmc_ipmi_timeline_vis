@@ -1,5 +1,6 @@
 function AddFancyVis() {
-  document.getElementById("main_gles_div").style.display="block" 
+  if (g_main_gles_module != undefined) return;
+  document.getElementById("main_gles_div").style.display="block"
   new MainGLESModule({
     preRun: [],
     postRun: [],
@@ -14,4 +15,14 @@ function AddFancyVis() {
     g_main_gles_module = m;
     console.log("DBus PCAP Main GLES Module Initialized.");
   });
+}
+
+function RemoveFancyVis() {
+  try {
+    g_main_gles_module.abort();
+  } catch (e) {
+
+  }
+  g_main_gles_module = undefined;
+  document.getElementById("main_gles_div").style.display="none";
 }

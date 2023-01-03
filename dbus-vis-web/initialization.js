@@ -28,6 +28,7 @@ function Init() {
     v3.AccentColor = '#E22';
 
     DragElement(document.getElementById("highlighted_messages"));
+    DragElement(document.getElementById("main_gles_div"));
 
     // Resolve this promise
     new DBusPCAPModule().then(m => {
@@ -115,19 +116,28 @@ var g_btn_zoom_reset = document.getElementById('btn_zoom_reset');
 var g_cb_debug_info = document.getElementById('cb_debuginfo');
 
 function ShowDBusTimeline() {
-    g_canvas_dbus.style.display = 'block';
-    g_group_by_dbus.style.display = 'block';
-  }
-  function ShowIPMITimeline() {
-    g_canvas_ipmi.style.display = 'block';
-    g_group_by_ipmi.style.display = 'block';
-  }
-  function ShowASIOTimeline() {
-    g_canvas_asio.style.display = 'block';
-    g_group_by_asio.style.display = 'block';
-  }
+  g_canvas_dbus.style.display = 'block';
+  g_group_by_dbus.style.display = 'block';
+}
+function ShowIPMITimeline() {
+  g_canvas_ipmi.style.display = 'block';
+  g_group_by_ipmi.style.display = 'block';
+}
+function ShowASIOTimeline() {
+  g_canvas_asio.style.display = 'block';
+  g_group_by_asio.style.display = 'block';
+}
 
 document.getElementById('file-input').addEventListener('change', ReadFile, false);
+
+// Fancy Viz button
+document.getElementById('btn_main_gles').addEventListener('click', function() {
+  if (g_main_gles_module == undefined) {
+    AddFancyVis();
+  } else {
+    RemoveFancyVis();
+  }
+});
 
 function UpdateFileNamesString() {} // No-op for browser version
 var g_pcap_load_method = "transpiled";

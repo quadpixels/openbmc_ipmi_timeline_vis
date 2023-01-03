@@ -1,5 +1,2 @@
 *.o
 main_gles
-main_gles.data
-main_gles.js
-main_gles.wasm

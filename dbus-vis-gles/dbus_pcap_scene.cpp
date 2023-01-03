@@ -408,4 +408,8 @@ void DBusPCAPScene::DBusMakeMethodCall(const std::string& from, const std::strin
   mtx.unlock();
 }
 
+void DBusPCAPScene::DBusEmitSignal(const std::string& from) {
+  
+}
+
 ChunkIndex* DBusPCAPScene::Projectile::chunk_index = nullptr;

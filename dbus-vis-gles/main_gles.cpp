@@ -32,6 +32,22 @@ RotatingCubeScene*  g_rotating_cube;
 TextureScene*       g_texture_scene;
 DBusPCAPScene*      g_dbuspcap_scene;
 
+#ifdef __EMSCRIPTEN__
+extern "C" {
+
+void DBusServiceFadeOut(const char* service) {
+  g_dbuspcap_scene->DBusServiceFadeOut(service);
+}
+void DBusMakeMethodCall(const char* from, const char* to) {
+  printf("from=%s, to=%s\n", from, to);
+  g_dbuspcap_scene->DBusMakeMethodCall(from, to);
+}
+void DBusEmitSignal(const char* from) {
+  g_dbuspcap_scene->DBusEmitSignal(from);
+}
+}
+#endif
+
 void Update(float delta_secs) {
   g_curr_scene->Update(delta_secs);
 }

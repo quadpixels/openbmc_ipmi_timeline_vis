@@ -188,6 +188,7 @@ let g_num_packets_total = 0, g_num_packets_parsed = 0;
 let g_last_update_millis = 0;
 
 function OpenDBusPcapFile2(file_name) {
+  Data_DBus = [];
   ShowBlocker('Sending PCAP file ...')
   console.log("ShowBlocker");
 
@@ -236,7 +237,7 @@ const IDX_PAYLOAD = 10;  // Payload of method call and serial
 
 // Called by CXX
 function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destination, path, iface, member, body) {
-
+  
   const millis = Date.now();
   if (millis - g_last_update_millis > 100) { // Refresh at most 10 times per second
     let pct = parseInt(g_num_packets_parsed * 100 / g_num_packets_total);
@@ -265,6 +266,7 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
         timestamp_end, '', body_parsed // TODO: Add payload
       ];
       g_preproc.push(entry);
+
       break;
     }
     case 1: { // Method call

@@ -1699,6 +1699,7 @@ class TimelineView {
         }
       })
 
+      // Time cursor (the vertical blue line)
       if (this.MouseState.hovered == true &&
           this.MouseState.hoveredSide == undefined &&
           should_hide_cursor == false) {
@@ -1727,6 +1728,24 @@ class TimelineView {
           ctx.fillText(label, this.MouseState.x, height - LINE_SPACING);
           ctx.textBaseline = 'top';
           ctx.fillText(label, this.MouseState.x, LINE_SPACING + TEXT_Y0);
+        }
+      }
+
+      // Replay cursor
+      if (g_is_replaying) {
+        const replay_elapsed = (Date.now() - g_replay_t0) / 1000.0; // msec to sec
+        if (replay_elapsed >= this.LowerBoundTime &&
+            replay_elapsed <= this.UpperBoundTime) {
+          const dx = MapXCoord(
+            replay_elapsed, LEFT_MARGIN, RIGHT_MARGIN, this.LowerBoundTime,
+            this.UpperBoundTime);
+            console.log(replay_elapsed + ", " + this.LowerBoundTime + ", " + this.UpperBoundTime + ", dx=" + dx);
+          ctx.beginPath();
+          ctx.strokeStyle = '#00CCCC';
+          ctx.moveTo(dx, 0);
+          ctx.lineTo(dx, height);
+          ctx.stroke();
+          this.IsCanvasDirty = true;
         }
       }
 

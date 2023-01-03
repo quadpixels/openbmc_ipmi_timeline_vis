@@ -39,6 +39,9 @@ main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget
 		-s ASSERTIONS=2 \
 		-s ALLOW_MEMORY_GROWTH=1 \
 		-s MODULARIZE -s EXPORT_NAME="MainGLESModule" \
+		-s EXPORTED_FUNCTIONS=_DBusServiceFadeOut,_DBusMakeMethodCall,_DBusEmitSignal,_main \
+		-s EXPORTED_RUNTIME_METHODS=ccall,cwrap \
+		-s TOTAL_MEMORY=128MB \
 		--preload-file vox/bg.vox \
 		--preload-file vox/defaultdaemon.vox \
 		--preload-file vox/hwmon.vox \

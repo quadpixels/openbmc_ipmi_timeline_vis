@@ -139,6 +139,10 @@ document.getElementById('btn_main_gles').addEventListener('click', function() {
   }
 });
 
+document.getElementById('btn_start_replay').addEventListener('click', function() {
+  StartReplay();
+});
+
 function UpdateFileNamesString() {} // No-op for browser version
 var g_pcap_load_method = "transpiled";
 

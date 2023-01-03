@@ -7,6 +7,7 @@
 #define GLFW_INCLUDE_ES2
 #include <GLFW/glfw3.h>
 
+#include "animator.hpp"
 #include "camera.hpp"
 #include "chunk.hpp"
 #include "chunkindex.hpp"
@@ -112,6 +113,7 @@ public:
   constexpr static float kRepulsionDistThresh = 20;
   constexpr static float kRepulsionFactor = 100;
   constexpr static float kDampening = 0.95f;
+
   // Load assets
   enum AssetID {
     OpenBMC = 0,
@@ -193,6 +195,8 @@ public:
   void Update(float secs);
   void Test1();
   void Test2();
+
+  Animator animator;
 
   // Exercise these two functions with DBus activity
   SpriteAndProperty* GetOrCreateDBusServiceSprite(const std::string& service);

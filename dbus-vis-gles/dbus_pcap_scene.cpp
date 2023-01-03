@@ -4,6 +4,7 @@
 #include <cctype>
 #include <string>
 
+#include "animator.hpp"
 #include "scene.hpp"
 
 extern int WIN_W, WIN_H;
@@ -182,6 +183,9 @@ void DBusPCAPScene::Render() {
 void DBusPCAPScene::Update(float secs) {
   mtx.lock();
   openbmc_sprite->RotateAroundGlobalAxis(glm::vec3(0,1,0), secs*120);
+
+  animator.Update(secs);
+
   std::vector<Projectile*> pnext;
   for (Projectile* p : projectiles) {
     p->Update(secs);
@@ -225,6 +229,7 @@ void DBusPCAPScene::Update(float secs) {
       float l = glm::length(p0p1);
       if (l < kRepulsionDistThresh) {
         glm::vec3 delta_v = glm::normalize(p0p1) * kRepulsionFactor * (kRepulsionDistThresh - l) * secs;
+        delta_v.y = 0; // Y位置始终不动
         sp1->sprite->vel += delta_v;
         sp->sprite->vel -= delta_v;
       }
@@ -396,6 +401,15 @@ DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::DBusServiceFadeIn(const std::st
 
     dbus_services[service] = s;
     ret = s;
+
+    std::vector<glm::vec3> kps = {
+      s->sprite->pos + glm::vec3(0, 100, 0),
+      s->sprite->pos
+    };
+    std::vector<float> tps = {
+      0, 0.6f // seconds
+    };
+    animator.Animate(s->sprite, "pos", kps, tps, nullptr);
   }
   mtx.unlock();
   return ret;

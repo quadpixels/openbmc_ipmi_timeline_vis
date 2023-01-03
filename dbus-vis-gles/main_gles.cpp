@@ -1,3 +1,10 @@
+// 2023-01-02
+//
+// How to run:
+// ./main_gles PCAP_FILE_NAME to replay a file.
+//
+// Add LIBGL_ALWAYS_SOFTWARE to use software rendering. This may be useful for some quirky platforms.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -178,8 +185,15 @@ void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, cons
       evt.arg1 = sender; evt.arg2 = destination;
       evt.timestamp = sec;
       g_dbus_vis_events.push_back(evt);
+    } else if (fixed.type == MessageType::SIGNAL) {
+      printf("Signal @ %g: %s\n", sec, sender.c_str());
+      DBusVisEvent evt;
+      evt.type = DBusVisEvent::MessageType::Signal;
+      evt.arg1 = sender;
+      evt.timestamp = sec;
+      g_dbus_vis_events.push_back(evt);
     }
-	}
+  }
 }
 
 void StartReplayingMessages();
@@ -215,6 +229,10 @@ void StartReplayingMessages() {
     switch (evt.type) {
       case DBusVisEvent::MessageType::MethodCall: {
         g_dbuspcap_scene->DBusMakeMethodCall(evt.arg1, evt.arg2);
+        break;
+      }
+      case DBusVisEvent::MessageType::Signal: {
+        g_dbuspcap_scene->DBusEmitSignal(evt.arg1);
         break;
       }
     }

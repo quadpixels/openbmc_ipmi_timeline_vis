@@ -66,6 +66,9 @@ function ReplayCallback() {
       if (msg[0] == "mc") {
         g_main_gles_module.ccall("DBusMakeMethodCall", "undefined", ["string","string"],
           [msg[3], msg[4]]);
+      } else if (msg[0] == "sig") {
+        g_main_gles_module.ccall("DBusEmitSignal", "undefined", ["string"],
+        [msg[3]]);
       }
       g_replay_msg_idx++;
     } else {

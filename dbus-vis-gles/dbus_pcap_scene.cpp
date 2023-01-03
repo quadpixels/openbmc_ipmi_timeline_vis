@@ -125,6 +125,19 @@ void DBusPCAPScene::Render() {
     if (num_lines >= kNumMaxLines) break;
   }
 
+  // Signal waves
+  for (SignalWave* sw : signal_waves) {
+    if (sw->Done()) continue;
+    if (num_lines + SignalWave::kBreaks) {
+      std::vector<float> vertexes = sw->GenerateVertexList();
+      for (float x : vertexes) {
+        lines_buf[idx++] = x;
+      }
+      num_lines += SignalWave::kBreaks;
+    }
+  }
+
+  // Arena boundary
   if (num_lines + 4 < kNumMaxLines) {
     const float arena_coords[] = {
       -kSceneRadius, 0, -kSceneRadius,
@@ -172,14 +185,24 @@ void DBusPCAPScene::Update(float secs) {
   std::vector<Projectile*> pnext;
   for (Projectile* p : projectiles) {
     p->Update(secs);
-    
     if (!p->Done()) {
       pnext.push_back(p);
-      p->Update(secs);
     } else {
       delete p;
     }
   }
+  projectiles = pnext;
+
+  std::vector<SignalWave*> swnext;
+  for (SignalWave* sw : signal_waves) {
+    sw->Update(secs);
+    if (!sw->Done()) {
+      swnext.push_back(sw);
+    } else {
+      delete sw;
+    }
+  }
+  signal_waves = swnext;
 
   std::vector<SpriteAndProperty*> spnext;
   for (SpriteAndProperty* sp : sprites) {
@@ -189,6 +212,7 @@ void DBusPCAPScene::Update(float secs) {
       spnext.push_back(sp);
     }
   }
+  sprites = spnext;
 
   const int NS = int(sprites.size());
   for (int i=0; i<NS; i++) {
@@ -233,9 +257,6 @@ void DBusPCAPScene::Update(float secs) {
     sp->sprite->pos += sp->sprite->vel * secs;
     sp->sprite->vel *= damp;
   }
-
-  sprites = spnext;
-  projectiles = pnext;
 
   mtx.unlock();
 }
@@ -408,8 +429,52 @@ void DBusPCAPScene::DBusMakeMethodCall(const std::string& from, const std::strin
   mtx.unlock();
 }
 
+DBusPCAPScene::SignalWave::SignalWave(Sprite* from) {
+  pos = from->pos;
+  lifetime = kDefaultTotalLifetime;
+  total_lifetime = kDefaultTotalLifetime;
+}
+
+bool DBusPCAPScene::SignalWave::Done() {
+  return lifetime <= 0;
+}
+
+void DBusPCAPScene::SignalWave::Update(float secs) {
+  lifetime -= secs;
+  if (lifetime < 0) {
+    lifetime = 0;
+  }
+}
+
+std::vector<float> DBusPCAPScene::SignalWave::GenerateVertexList() {
+  std::vector<float> ret;
+  const float t = 1.0f - (lifetime / total_lifetime);
+  const float r = kRadius * t;
+  for(int i=0; i<kBreaks; i++) {
+    const float theta1 = Lerp(0, 2*3.141592f, i*1.0f/kBreaks);
+    glm::vec3 offset1(r*cos(theta1), 0, r*sin(theta1));
+    const float theta2 = Lerp(0, 2*3.141592f, (1+i)*1.0f/kBreaks);
+    glm::vec3 offset2(r*cos(theta2), 0, r*sin(theta2));
+
+    glm::vec3 vert1 = pos + offset1;
+    glm::vec3 vert2 = pos + offset2;
+
+    ret.push_back(vert1.x);
+    ret.push_back(vert1.y);
+    ret.push_back(vert1.z);
+    ret.push_back(vert2.x);
+    ret.push_back(vert2.y);
+    ret.push_back(vert2.z);
+  }
+  return ret;
+}
+
 void DBusPCAPScene::DBusEmitSignal(const std::string& from) {
-  
+  DBusPCAPScene::SpriteAndProperty* sp = GetOrCreateDBusServiceSprite(from);
+  mtx.lock();
+  SignalWave* sw = new SignalWave(sp->sprite);
+  signal_waves.push_back(sw);
+  mtx.unlock();
 }
 
 ChunkIndex* DBusPCAPScene::Projectile::chunk_index = nullptr;

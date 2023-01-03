@@ -154,8 +154,21 @@ public:
     Projectile(Sprite* from, Sprite* to);
   };
 
+  struct SignalWave {
+    constexpr static int kBreaks = 8;
+    constexpr static float kDefaultTotalLifetime = 0.5f;
+    constexpr static float kRadius = 32.0f;
+    glm::vec3 pos;
+    float lifetime, total_lifetime;
+    SignalWave(Sprite* from);
+    bool Done();
+    void Update(float secs);
+    std::vector<float> GenerateVertexList();
+  };
+
   std::vector<struct SpriteAndProperty*> sprites;
   std::vector<struct Projectile*> projectiles;
+  std::vector<SignalWave*> signal_waves;
   std::unordered_map<std::string, struct SpriteAndProperty*> dbus_services;
 
   // 画线用

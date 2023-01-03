@@ -13,20 +13,19 @@
   </head>
   <body>
   <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-    <script type='text/javascript'>
-      // connect to canvas
-      var Module = {
-        preRun: [],
-        postRun: [],
-        print: function() { 
-            console.log(Array.prototype.slice.call(arguments).join(" "));
-        },
-        printErr: function() {
-            console.warn(Array.prototype.slice.call(arguments).join(" "));
-        },
-        canvas: document.getElementById('canvas')
-      }
-    </script>
-    <script async type="text/javascript" src="main_gles.js"></script>
+  <script type="text/javascript" src="main_gles.js"></script>
+  <script type='text/javascript'>
+    new MainGLESModule({
+      preRun: [],
+      postRun: [],
+      print: function() { 
+          console.log(Array.prototype.slice.call(arguments).join(" "));
+      },
+      printErr: function() {
+          console.warn(Array.prototype.slice.call(arguments).join(" "));
+      },
+      canvas: document.getElementById('canvas')
+    })
+  </script>
 </body>
 </html>

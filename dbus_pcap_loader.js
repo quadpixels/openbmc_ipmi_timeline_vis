@@ -204,7 +204,7 @@ function OpenDBusPcapFile2(file_name) {
   const data = fs.readFileSync(file_name);
   let buf = new Uint8Array(data);
   console.log(buf);
-  Module.ccall("StartSendPCAPByteArray", "undefined", ["number"], buf.length);
+  g_dbus_pcap_module.ccall("StartSendPCAPByteArray", "undefined", ["number"], buf.length);
 
   const CHUNK_SIZE = 65536;
   const num_chunks = parseInt((buf.length - 1) / CHUNK_SIZE) + 1;
@@ -214,14 +214,14 @@ function OpenDBusPcapFile2(file_name) {
     let chunk = buf.slice(offset, offset_end);
     ShowBlocker('Sending PCAP file ... ' + parseInt(offset / 1024) + "K / " +
       parseInt(buf.length / 1024) + "K");
-    Module.ccall("SendPCAPByteArrayChunk", "undefined", ["array", "number"],
+    g_dbus_pcap_module.ccall("SendPCAPByteArrayChunk", "undefined", ["array", "number"],
       [chunk, chunk.length]);
   }
 
   ShowBlocker('Parsing PCAP file ...');
 
   g_ipmi_parsed_entries = [];
-  Module.ccall("EndSendPCAPByteArray", "undefined", [], [])
+  g_dbus_pcap_module.ccall("EndSendPCAPByteArray", "undefined", [], [])
 }
 
 function OnDBusPCapInfo(num_packets) {

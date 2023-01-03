@@ -1,3 +1,6 @@
+var g_dbus_pcap_module = undefined;
+var g_main_gles_module = undefined;
+
 function Init() {
     console.log('[Init] Initialization');
     ipmi_timeline_view.Canvas = document.getElementById('my_canvas_ipmi');
@@ -25,6 +28,12 @@ function Init() {
     v3.AccentColor = '#E22';
 
     DragElement(document.getElementById("highlighted_messages"));
+
+    // Resolve this promise
+    new DBusPCAPModule().then(m => {
+      g_dbus_pcap_module = m;
+      console.log("DBus PCAP Module Initialized.");
+    });
 }
 
 function ReadFile(e) {
@@ -40,9 +49,9 @@ function ReadFile(e) {
         var contents = e.target.result;
         let buf = new Uint8Array(contents);
 
-        console.log(">>> Module.ccall")
-        Module.ccall("StartSendPCAPByteArray", "undefined", ["number"], buf.length);
-        console.log("<<< Module.ccall")
+        console.log(">>> g_dbus_pcap_module.ccall")
+        g_dbus_pcap_module.ccall("StartSendPCAPByteArray", "undefined", ["number"], buf.length);
+        console.log("<<< g_dbus_pcap_module.ccall")
 
         const CHUNK_SIZE = 65536;
         const num_chunks = parseInt((buf.length - 1) / CHUNK_SIZE) + 1;
@@ -52,7 +61,7 @@ function ReadFile(e) {
             let chunk = buf.slice(offset, offset_end);
             ShowBlocker('Sending PCAP file ... ' + parseInt(offset / 1024) + "K / " +
             parseInt(buf.length / 1024) + "K");
-            Module.ccall("SendPCAPByteArrayChunk", "undefined", ["array", "number"],
+            g_dbus_pcap_module.ccall("SendPCAPByteArrayChunk", "undefined", ["array", "number"],
             [chunk, chunk.length]);
         }
 
@@ -62,7 +71,7 @@ function ReadFile(e) {
 
         RANGE_RIGHT_INIT = 0;
         RANGE_LEFT_INIT  = 1e20;
-        Module.ccall("EndSendPCAPByteArray", "undefined", [], [])
+        g_dbus_pcap_module.ccall("EndSendPCAPByteArray", "undefined", [], [])
     };
     reader.readAsArrayBuffer(file);
 }

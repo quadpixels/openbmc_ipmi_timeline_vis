@@ -38,11 +38,13 @@ main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget
 		-s FULL_ES3=1 -s FULL_ES2=1 \
 		-s ASSERTIONS=2 \
 		-s ALLOW_MEMORY_GROWTH=1 \
-		--preload-file vox/hwmon.vox \
-		--preload-file vox/openbmc.vox \
-		--preload-file vox/player.vox \
+		-s MODULARIZE -s EXPORT_NAME="MainGLESModule" \
 		--preload-file vox/bg.vox \
 		--preload-file vox/defaultdaemon.vox \
+		--preload-file vox/hwmon.vox \
+		--preload-file vox/mapper.vox \
+		--preload-file vox/openbmc.vox \
+		--preload-file vox/player.vox \
 		--preload-file shaders/hellotriangle.fs \
 		--preload-file shaders/hellotriangle.vs \
 		--preload-file shaders/palettescene.vs \

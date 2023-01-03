@@ -105,6 +105,14 @@
         <div id="highlighted_messages_header" class="info_panel_header">Info of selected range</div>
         <div id="highlighted_messages_content" class="info_panel_content"></div>
     </div>
+
+    <div id="main_gles_div" class="info_panel" style="display:none">
+      <div id="main_gles_div_header" class="info_panel_header">Voxel world ???</div>
+      <div id="main_gles_div_content" class="info_panel_content"></div>
+      <canvas class="emscripten" id="main_gles_canvas" oncontextmenu="event.preventDefault()"></canvas>
+      <button id="btn_main_gles">Fancy Viz!</button>
+    </div>
+
 </body>
 
 <script src="./timeline_view.js"></script>
@@ -115,8 +123,10 @@
 <script src="./renderer.js"></script>
 <script src="./dbus_pcap_loader.js"></script>
 <script src="./pcap_analyzer.js"></script>
+<script src="./main_gles.js"></script>
 <script src="./info_panel.js"></script>
 <script src="./initialization.js"></script> <!-- initialization is different from in electron.js -->
+<script src="./main_gles_loader.js"></script>
 
 
 <link rel="stylesheet" href="./dbus_vis.css">

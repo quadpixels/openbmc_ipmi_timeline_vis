@@ -129,7 +129,9 @@ struct DBusVisEvent {
   MessageType type;
   std::string arg1, arg2;
 };
+
 static std::vector<struct DBusVisEvent> g_dbus_vis_events;
+static std::unordered_map<std::string, std::pair<double, double>> g_dbus_service_timerange;  // 入时与出时
 // For replay
 void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, const unsigned char* packet) {
 	const struct timeval& ts = pkthdr->ts;
@@ -145,6 +147,16 @@ void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, cons
 		std::vector<DBusType> body;
 
 		ParseHeaderAndBody(packet, caplen, &fixed, &fields, &body);
+
+    auto UpdateTimeRange = [](const std::string& s, double x) {
+      if (g_dbus_service_timerange.find(s) == g_dbus_service_timerange.end()) {
+        g_dbus_service_timerange[s] = std::make_pair(x, x);
+      } else {
+        std::pair<double, double>& entry = g_dbus_service_timerange.at(s);
+        entry.first = std::min(entry.first, x);
+        entry.second = std::max(entry.second, x);
+      }
+    };
 
 		std::string path, iface, member, destination, sender;
 		uint32_t reply_serial = 0xFFFFFFFF;
@@ -179,19 +191,22 @@ void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, cons
 		}
     
     if (fixed.type == MessageType::METHOD_CALL) {
-      printf("MC @ %g: %s -> %s\n", sec, sender.c_str(), destination.c_str());
+      //printf("MC @ %g: %s -> %s\n", sec, sender.c_str(), destination.c_str());
       DBusVisEvent evt;
       evt.type = DBusVisEvent::MessageType::MethodCall;
       evt.arg1 = sender; evt.arg2 = destination;
       evt.timestamp = sec;
       g_dbus_vis_events.push_back(evt);
+      UpdateTimeRange(sender, sec);
+      UpdateTimeRange(destination, sec);
     } else if (fixed.type == MessageType::SIGNAL) {
-      printf("Signal @ %g: %s\n", sec, sender.c_str());
+      //printf("Signal @ %g: %s\n", sec, sender.c_str());
       DBusVisEvent evt;
       evt.type = DBusVisEvent::MessageType::Signal;
       evt.arg1 = sender;
       evt.timestamp = sec;
       g_dbus_vis_events.push_back(evt);
+      UpdateTimeRange(sender, sec);
     }
   }
 }
@@ -205,6 +220,23 @@ void StartPCAPReplayThread(const char* filename) {
   }
   SetPCAPCallback(MyCallback);
   ProcessByteArray(buf);
+
+  const float kFadeOutWait = 2; //  2 seconds to fade out
+
+  // Append fade-out events
+  for (const auto& entry : g_dbus_service_timerange) {
+    DBusVisEvent evt;
+    evt.type = DBusVisEvent::MessageType::ServiceFadeOut;
+    evt.arg1 = entry.first;
+    evt.timestamp = entry.second.second + kFadeOutWait;
+    printf("%s fades out @ %g\n", entry.first.c_str(), evt.timestamp);
+    g_dbus_vis_events.push_back(evt);
+  }
+
+  std::sort(g_dbus_vis_events.begin(), g_dbus_vis_events.end(),
+    [](const DBusVisEvent& lhs, const DBusVisEvent& rhs) {
+      return lhs.timestamp < rhs.timestamp;
+    });
 
   printf("%zu events. Sleeping for 2s before replaying . . .\n",
     g_dbus_vis_events.size());
@@ -228,11 +260,21 @@ void StartReplayingMessages() {
 
     switch (evt.type) {
       case DBusVisEvent::MessageType::MethodCall: {
+        printf("Method call %s -> %s @ %g\n",
+          evt.arg1.c_str(), evt.arg2.c_str(), replay_elapsed);
         g_dbuspcap_scene->DBusMakeMethodCall(evt.arg1, evt.arg2);
         break;
       }
       case DBusVisEvent::MessageType::Signal: {
+        printf("Signal %s @ %g\n",
+          evt.arg1.c_str(), replay_elapsed);
         g_dbuspcap_scene->DBusEmitSignal(evt.arg1);
+        break;
+      }
+      case DBusVisEvent::MessageType::ServiceFadeOut: {
+        printf("Fade out %s @ %g\n",
+          evt.arg1.c_str(), replay_elapsed);
+        g_dbuspcap_scene->DBusServiceFadeOut(evt.arg1);
         break;
       }
     }

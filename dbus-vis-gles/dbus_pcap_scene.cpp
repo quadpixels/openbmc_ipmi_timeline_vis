@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <unordered_map>
 
 #include "animator.hpp"
 #include "scene.hpp"
@@ -415,11 +416,19 @@ DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::DBusServiceFadeIn(const std::st
   return ret;
 }
 
+static std::unordered_map<Sprite*, DBusPCAPScene::SpriteAndProperty*> s2sp;
+
 void DBusPCAPScene::DBusServiceFadeOut(const std::string& service) {
   mtx.lock();
   if (dbus_services.find(service) != dbus_services.end()) {
     auto itr = dbus_services.find(service);
-    itr->second->marked_for_deletion = true;
+    s2sp[itr->second->sprite] = itr->second;
+    animator.Animate(itr->second->sprite, "scale", {
+      itr->second->sprite->scale, glm::vec3(0,0,0)
+    }, { 0, 1 }, [](Sprite* s){
+      s2sp[s]->marked_for_deletion = true;
+      s2sp.erase(s);
+    });
     dbus_services.erase(itr);
   }
   mtx.unlock();

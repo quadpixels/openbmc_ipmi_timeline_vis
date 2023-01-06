@@ -38,12 +38,15 @@ void Animator::Update(float secs) {
     }
     float t0 = kfs.timepoints[kfs.idx], t1 = kfs.timepoints[kfs.idx+1];
     float completion = (elapsed - t0) / (t1 - t0);
-    printf("Elapsed: %g, %g, %g, %g\n", elapsed, t0, t1, completion);
     glm::vec3 value = glm::mix(kfs.keypoints[kfs.idx], kfs.keypoints[kfs.idx+1], completion);
 
     // TODO: Can replace with real reflection?
     if (kfs.field == "pos") {
       subject->pos = value;
+    } else if (kfs.field == "scale") {
+      ChunkSprite* cs = dynamic_cast<ChunkSprite*>(subject);
+      if (cs) 
+        cs->scale = value;
     }
   }
 

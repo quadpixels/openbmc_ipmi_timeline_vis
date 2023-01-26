@@ -11,12 +11,12 @@
 extern int WIN_W, WIN_H;
 
 DBusPCAPScene::DBusPCAPScene() {
-  backdrop = new OneChunkScene::Backdrop(256, 251);
+  backdrop = new OneChunkScene::Backdrop(800, 251);
   backdrop->pos = glm::vec3(0, -10, 0);
 
   directional_light = new DirectionalLight(glm::vec3(-1,-3,1), glm::vec3(1,3,-1)*50.0f);
   depth_fbo = new DepthOnlyFBO(WIN_W, WIN_H);
-  projection_matrix = glm::perspective(60.0f*3.14159f/180.0f, WIN_W*1.0f/WIN_H, 0.1f, 499.0f);
+  projection_matrix = glm::perspective(60.0f*3.14159f/180.0f, WIN_W*1.0f/WIN_H, 0.1f, 999.0f);
 
   chunk_assets[AssetID::OpenBMC] = new ChunkGrid("vox/openbmc.vox");
   chunk_assets[AssetID::HwMon] = new ChunkGrid("vox/hwmon.vox");
@@ -33,6 +33,7 @@ DBusPCAPScene::DBusPCAPScene() {
   sp = CreateSprite(AssetID::Background, glm::vec3(0,2,0));
   sp->usage = SpriteAndProperty::Usage::Background;
   bg_sprite = sp->sprite;
+  bg_sprite->scale = glm::vec3(4,1,4);
 
   if (Projectile::chunk_index == nullptr) {
     ChunkIndex* ci = new ChunkGrid(3,3,3);
@@ -47,6 +48,8 @@ DBusPCAPScene::DBusPCAPScene() {
   MyCheckError("Initialize DBusPCAPScene");
   lines_buf.resize(kNumMaxLines * 6);
   line_drawing_program = BuildShaderProgram("shaders/draw_lines.vs", "shaders/draw_lines.fs");
+
+  cam_zoom = new CamZoom(camera);
 }
 
 void DBusPCAPScene::Render() {
@@ -186,6 +189,9 @@ void DBusPCAPScene::Update(float secs) {
   openbmc_sprite->RotateAroundGlobalAxis(glm::vec3(0,1,0), secs*120);
 
   animator.Update(secs);
+  cam_zoom->Update(secs);
+  camera.pos = glm::mix(camera.pos, cam_zoom->GetCamTargetPosition(),
+    pow(0.95,  secs/0.016));
 
   std::vector<Projectile*> pnext;
   for (Projectile* p : projectiles) {
@@ -449,6 +455,7 @@ void DBusPCAPScene::DBusMakeMethodCall(const std::string& from, const std::strin
   mtx.lock();
   Projectile* proj = new Projectile(sp_from->sprite, sp_to->sprite);
   projectiles.push_back(proj);
+  cam_zoom->Push();
   mtx.unlock();
 }
 
@@ -497,7 +504,37 @@ void DBusPCAPScene::DBusEmitSignal(const std::string& from) {
   mtx.lock();
   SignalWave* sw = new SignalWave(sp->sprite);
   signal_waves.push_back(sw);
+  cam_zoom->Push();
   mtx.unlock();
 }
 
 ChunkIndex* DBusPCAPScene::Projectile::chunk_index = nullptr;
+
+DBusPCAPScene::CamZoom::CamZoom(const Camera& camera) {
+  camera_lookdir = camera.lookdir;
+  camera_focus = glm::vec3(0, 0, 0);
+}
+
+void DBusPCAPScene::CamZoom::Update(float secs) {
+  speed += acc * secs;
+  if (speed > speed_max) {
+    speed = speed_max;
+  } else if (speed < speed_min) {
+    speed = speed_min;
+  }
+  dist += speed * secs;
+  if (dist > max_dist) {
+    dist = max_dist;
+  } else if (dist < min_dist) {
+    dist = min_dist;
+  }
+}
+
+glm::vec3 DBusPCAPScene::CamZoom::GetCamTargetPosition() {
+  return camera_focus - camera_lookdir*dist;
+}
+
+void DBusPCAPScene::CamZoom::Push() {
+  if (speed > 0) speed = 0;
+  speed -= 20.0f;
+}

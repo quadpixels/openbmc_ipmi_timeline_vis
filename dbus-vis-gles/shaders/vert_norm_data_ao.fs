@@ -25,7 +25,7 @@ float ShadowCalc(vec4 frag) {
 				texture(shadow_map, sxy).r;
 			float curr_depth    = xyz.z;
 			
-			const float bias = 0.002f;
+			const float bias = 0.006f;
 			num_in_shadow += curr_depth - bias > closest_depth ? 1 : 0;
 			num_samples += 1;
 		}

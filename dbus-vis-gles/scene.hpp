@@ -187,6 +187,23 @@ public:
   
   OneChunkScene::Backdrop* backdrop;
   Camera camera;
+  struct CamZoom {
+    CamZoom(const Camera& camera);
+    glm::vec3 camera_lookdir;
+    glm::vec3 camera_focus;
+    float min_dist = 150.0f;
+    float max_dist = 550.0f;
+    float speed = 0.0f;
+    float dist = 550.0f;
+    float acc = 80.0f;
+    float speed_min = -100.0f;
+    float speed_max = 100.0f;
+    void Update(float secs);
+    void OnMessage();
+    glm::vec3 GetCamTargetPosition();
+    void Push();
+  };
+  CamZoom* cam_zoom;
   DirectionalLight* directional_light;
   glm::mat4 projection_matrix;
   DepthOnlyFBO* depth_fbo;

@@ -125,6 +125,7 @@ public:
     EntityManager,
   };
   std::unordered_map<AssetID, ChunkIndex*> chunk_assets;
+  std::unordered_map<AssetID, int> assets_occ;
 
   struct SpriteAndProperty {
     SpriteAndProperty() : marked_for_deletion(false) {}

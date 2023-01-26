@@ -193,7 +193,7 @@ void DBusPCAPScene::Update(float secs) {
   animator.Update(secs);
   cam_zoom->Update(secs);
   camera.pos = glm::mix(camera.pos, cam_zoom->GetCamTargetPosition(),
-    pow(0.95,  secs/0.016));
+    pow(0.98,  secs/0.016));
 
   std::vector<Projectile*> pnext;
   for (Projectile* p : projectiles) {
@@ -400,9 +400,9 @@ DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::DBusServiceFadeIn(const std::st
     // Guess what asset we should use
     if (service == "xyz.openbmc_project.ObjectMapper") {
       asset_id = AssetID::ObjectMapper;
-    } else if (path.find("/xyz/openbmc_project/sensors/") == 0 && is_sig) {
+    } else if ((path.find("/xyz/openbmc_project/sensors/") == 0) && is_sig) {
       asset_id = AssetID::HwMon;
-    } else if (path == "/xyz/openbmc_project/Ipmi" && member == "execute") {
+    } else if (service == "xyz.openbmc_project.Ipmi.Host" && assets_occ[AssetID::IpmiHost] == 0) {
       asset_id = AssetID::IpmiHost;
     }
 
@@ -413,7 +413,10 @@ DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::DBusServiceFadeIn(const std::st
     // 特例：把mapper缩小一点
     if (asset_id == AssetID::ObjectMapper) {
       s->sprite->scale *= 0.75;
+    } else if (asset_id == AssetID::IpmiHost) {
+      s->sprite->scale *= 0.75;
     }
+    assets_occ[asset_id] ++;
 
     dbus_services[service] = s;
     ret = s;

@@ -47,12 +47,14 @@ void DBusServiceFadeOut(const char* service) {
 }
 void DBusMakeMethodCall(const char* from, const char* to,
   const char* path, const char* interface, const char* member) {
-  printf("from=%s, to=%s, path=%s, iface=%s, member=%s\n", from, to,
+  printf("mc, from=%s, to=%s, path=%s, iface=%s, member=%s\n", from, to,
   path, interface, member);
   g_dbuspcap_scene->DBusMakeMethodCall(from, to, path, interface, member);
 }
 void DBusEmitSignal(const char* from,
   const char* path, const char* interface, const char* member) {
+  printf("sig, from=%s, path=%s, iface=%s, member=%s\n", from,
+  path, interface, member);
   g_dbuspcap_scene->DBusEmitSignal(from, path, interface, member);
 }
 }

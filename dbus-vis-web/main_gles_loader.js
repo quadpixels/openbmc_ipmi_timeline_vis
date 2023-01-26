@@ -108,7 +108,7 @@ function ReplayCallback() {
         g_dbus_conn_visible.add(msg[4]);
       } else if (msg[0] == "sig") {
         g_main_gles_module.ccall("DBusEmitSignal", "undefined", ["string", "string", "string", "string"],
-        [msg[3], msg[4], msg[5], msg[6]]);
+        [msg[3], msg[5], msg[6], msg[7]]);
         g_dbus_conn_visible.add(msg[3]);
       }
       g_replay_msg_idx++;

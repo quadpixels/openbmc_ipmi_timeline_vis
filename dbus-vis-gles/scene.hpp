@@ -196,7 +196,7 @@ public:
     float speed = 0.0f;
     float dist = 550.0f;
     float acc = 80.0f;
-    float speed_min = -100.0f;
+    float speed_min = -200.0f;
     float speed_max = 100.0f;
     void Update(float secs);
     void OnMessage();
@@ -216,9 +216,9 @@ public:
   Animator animator;
 
   // Exercise these two functions with DBus activity
-  SpriteAndProperty* GetOrCreateDBusServiceSprite(const std::string& service);
-  SpriteAndProperty* DBusServiceFadeIn(const std::string& service);
+  SpriteAndProperty* GetOrCreateDBusServiceSprite(const std::string& service, const std::string& path, const std::string& iface, const std::string& member, bool is_sig);
+  SpriteAndProperty* DBusServiceFadeIn(const std::string& service, const std::string& path, const std::string& iface, const std::string& member, bool is_sig);
   void DBusServiceFadeOut(const std::string& service);
-  void DBusMakeMethodCall(const std::string& from, const std::string& to);
-  void DBusEmitSignal(const std::string& from);
+  void DBusMakeMethodCall(const std::string& from, const std::string& to, const std::string& path, const std::string& iface, const std::string& member);
+  void DBusEmitSignal(const std::string& from, const std::string& path, const std::string& iface, const std::string& member);
 };

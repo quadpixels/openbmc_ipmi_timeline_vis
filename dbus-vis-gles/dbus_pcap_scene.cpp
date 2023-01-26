@@ -384,7 +384,8 @@ void DBusPCAPScene::Projectile::Update(float secs) {
 
 
 
-DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::DBusServiceFadeIn(const std::string& service) {
+DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::DBusServiceFadeIn(const std::string& service,
+  const std::string& path, const std::string& iface, const std::string& member, bool is_sig) {
   mtx.lock();
   SpriteAndProperty* ret;
   if (dbus_services.find(service) == dbus_services.end()) {
@@ -393,8 +394,12 @@ DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::DBusServiceFadeIn(const std::st
     glm::vec3 p(RandRange(-r, r), 0, RandRange(-r, r));
 
     AssetID asset_id = AssetID::DefaultDaemon;
+
+    // Guess what asset we should use
     if (service == "xyz.openbmc_project.ObjectMapper") {
       asset_id = AssetID::ObjectMapper;
+    } else if (path.find("/xyz/openbmc_project/sensors/") == 0 && is_sig) {
+      asset_id = AssetID::HwMon;
     }
 
     SpriteAndProperty* s = CreateSprite(asset_id, p);
@@ -440,18 +445,22 @@ void DBusPCAPScene::DBusServiceFadeOut(const std::string& service) {
   mtx.unlock();
 }
 
-DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::GetOrCreateDBusServiceSprite(const std::string& service) {
+DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::GetOrCreateDBusServiceSprite(const std::string& service,
+  const std::string& path, const std::string& iface, const std::string& member, bool is_sig) {
   SpriteAndProperty* ret;
   if (dbus_services.find(service) != dbus_services.end()) {
     return dbus_services.at(service);
   } else {
-    return DBusServiceFadeIn(service);
+    return DBusServiceFadeIn(service, path, iface, member, is_sig);
   }
 }
 
-void DBusPCAPScene::DBusMakeMethodCall(const std::string& from, const std::string& to) {
-  DBusPCAPScene::SpriteAndProperty *sp_from = GetOrCreateDBusServiceSprite(from);
-  DBusPCAPScene::SpriteAndProperty *sp_to = GetOrCreateDBusServiceSprite(to);
+void DBusPCAPScene::DBusMakeMethodCall(const std::string& from, const std::string& to,
+  const std::string& path, const std::string& interface, const std::string& member) {
+  DBusPCAPScene::SpriteAndProperty *sp_from = GetOrCreateDBusServiceSprite(from,
+    path, interface, member, false);
+  DBusPCAPScene::SpriteAndProperty *sp_to = GetOrCreateDBusServiceSprite(to,
+    path, interface, member, false);
   mtx.lock();
   Projectile* proj = new Projectile(sp_from->sprite, sp_to->sprite);
   projectiles.push_back(proj);
@@ -499,8 +508,9 @@ std::vector<float> DBusPCAPScene::SignalWave::GenerateVertexList() {
   return ret;
 }
 
-void DBusPCAPScene::DBusEmitSignal(const std::string& from) {
-  DBusPCAPScene::SpriteAndProperty* sp = GetOrCreateDBusServiceSprite(from);
+void DBusPCAPScene::DBusEmitSignal(const std::string& from, const std::string& path, const std::string& iface, const std::string& member) {
+  DBusPCAPScene::SpriteAndProperty* sp = GetOrCreateDBusServiceSprite(
+    from, path, iface, member, true);
   mtx.lock();
   SignalWave* sw = new SignalWave(sp->sprite);
   signal_waves.push_back(sw);

@@ -45,12 +45,15 @@ extern "C" {
 void DBusServiceFadeOut(const char* service) {
   g_dbuspcap_scene->DBusServiceFadeOut(service);
 }
-void DBusMakeMethodCall(const char* from, const char* to) {
-  printf("from=%s, to=%s\n", from, to);
-  g_dbuspcap_scene->DBusMakeMethodCall(from, to);
+void DBusMakeMethodCall(const char* from, const char* to,
+  const char* path, const char* interface, const char* member) {
+  printf("from=%s, to=%s, path=%s, iface=%s, member=%s\n", from, to,
+  path, interface, member);
+  g_dbuspcap_scene->DBusMakeMethodCall(from, to, path, interface, member);
 }
-void DBusEmitSignal(const char* from) {
-  g_dbuspcap_scene->DBusEmitSignal(from);
+void DBusEmitSignal(const char* from,
+  const char* path, const char* interface, const char* member) {
+  g_dbuspcap_scene->DBusEmitSignal(from, path, interface, member);
 }
 }
 #endif
@@ -127,7 +130,7 @@ struct DBusVisEvent {
   };
   double timestamp;
   MessageType type;
-  std::string arg1, arg2;
+  std::string arg1, arg2, arg3, arg4, arg5;
 };
 
 static std::vector<struct DBusVisEvent> g_dbus_vis_events;
@@ -195,6 +198,7 @@ void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, cons
       DBusVisEvent evt;
       evt.type = DBusVisEvent::MessageType::MethodCall;
       evt.arg1 = sender; evt.arg2 = destination;
+      evt.arg3 = path; evt.arg4 = iface; evt.arg5 = member;
       evt.timestamp = sec;
       g_dbus_vis_events.push_back(evt);
       UpdateTimeRange(sender, sec);
@@ -204,6 +208,7 @@ void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, cons
       DBusVisEvent evt;
       evt.type = DBusVisEvent::MessageType::Signal;
       evt.arg1 = sender;
+      evt.arg3 = path; evt.arg4 = iface; evt.arg5 = member;
       evt.timestamp = sec;
       g_dbus_vis_events.push_back(evt);
       UpdateTimeRange(sender, sec);
@@ -262,13 +267,13 @@ void StartReplayingMessages() {
       case DBusVisEvent::MessageType::MethodCall: {
         printf("Method call %s -> %s @ %g\n",
           evt.arg1.c_str(), evt.arg2.c_str(), replay_elapsed);
-        g_dbuspcap_scene->DBusMakeMethodCall(evt.arg1, evt.arg2);
+        g_dbuspcap_scene->DBusMakeMethodCall(evt.arg1, evt.arg2, evt.arg3, evt.arg4, evt.arg5);
         break;
       }
       case DBusVisEvent::MessageType::Signal: {
         printf("Signal %s @ %g\n",
           evt.arg1.c_str(), replay_elapsed);
-        g_dbuspcap_scene->DBusEmitSignal(evt.arg1);
+        g_dbuspcap_scene->DBusEmitSignal(evt.arg1, evt.arg3, evt.arg4, evt.arg5);
         break;
       }
       case DBusVisEvent::MessageType::ServiceFadeOut: {

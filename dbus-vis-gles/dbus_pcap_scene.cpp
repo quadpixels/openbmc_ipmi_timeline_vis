@@ -23,6 +23,8 @@ DBusPCAPScene::DBusPCAPScene() {
   chunk_assets[AssetID::Background] = new ChunkGrid("vox/bg.vox");
   chunk_assets[AssetID::DefaultDaemon] = new ChunkGrid("vox/defaultdaemon.vox");
   chunk_assets[AssetID::ObjectMapper] = new ChunkGrid("vox/mapper.vox");
+  chunk_assets[AssetID::IpmiHost] = new ChunkGrid("vox/ipmi.vox");
+  chunk_assets[AssetID::EntityManager] = new ChunkGrid("vox/em.vox");
 
   SpriteAndProperty* sp = CreateSprite(AssetID::OpenBMC, glm::vec3(0,2,0));
   sp->usage = SpriteAndProperty::Usage::Background;
@@ -400,6 +402,8 @@ DBusPCAPScene::SpriteAndProperty* DBusPCAPScene::DBusServiceFadeIn(const std::st
       asset_id = AssetID::ObjectMapper;
     } else if (path.find("/xyz/openbmc_project/sensors/") == 0 && is_sig) {
       asset_id = AssetID::HwMon;
+    } else if (path == "/xyz/openbmc_project/Ipmi" && member == "execute") {
+      asset_id = AssetID::IpmiHost;
     }
 
     SpriteAndProperty* s = CreateSprite(asset_id, p);

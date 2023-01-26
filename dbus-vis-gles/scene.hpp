@@ -121,6 +121,8 @@ public:
     Background,
     DefaultDaemon,
     ObjectMapper,
+    IpmiHost,
+    EntityManager,
   };
   std::unordered_map<AssetID, ChunkIndex*> chunk_assets;
 

@@ -81,31 +81,34 @@ function StopReplay() {
   }
 }
 function ReplayCallback() {
+  const fade_time = 2000;
   if (g_preproc.length < 1) return;
+  const first_packet = g_preproc[0];
+  const last_packet = g_preproc[g_preproc.length-1];
   if (g_main_gles_module == undefined) return;
-  if (g_replay_msg_idx >= g_preproc.length) {
+  g_replay_time = Date.now();
+  const replay_elapsed = g_replay_time - g_replay_t0;
+  if (g_replay_msg_idx >= g_preproc.length &&
+      replay_elapsed > fade_time * 2 + last_packet[1] - first_packet[1]) {
     g_is_replaying = false;
     console.log("Replay finished.");
     return;
   }
 
-  const first_packet = g_preproc[0];
-  g_replay_time = Date.now();
   if (!g_is_replaying) return;
   console.log(">> ReplayCallback");
-  const replay_elapsed = g_replay_time - g_replay_t0;
   while (g_replay_msg_idx < g_preproc.length) {
     const msg = g_preproc[g_replay_msg_idx];
     const msg_millis = msg[1] - first_packet[1];
     if (msg_millis <= replay_elapsed) {
       if (msg[0] == "mc") {
-        g_main_gles_module.ccall("DBusMakeMethodCall", "undefined", ["string","string"],
-          [msg[3], msg[4]]);
+        g_main_gles_module.ccall("DBusMakeMethodCall", "undefined", ["string","string","string","string","string"],
+          [msg[3], msg[4], msg[5], msg[6], msg[7]]);
         g_dbus_conn_visible.add(msg[3]);
         g_dbus_conn_visible.add(msg[4]);
       } else if (msg[0] == "sig") {
-        g_main_gles_module.ccall("DBusEmitSignal", "undefined", ["string"],
-        [msg[3]]);
+        g_main_gles_module.ccall("DBusEmitSignal", "undefined", ["string", "string", "string", "string"],
+        [msg[3], msg[4], msg[5], msg[6]]);
         g_dbus_conn_visible.add(msg[3]);
       }
       g_replay_msg_idx++;

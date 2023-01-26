@@ -52,6 +52,8 @@ main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget
 		--preload-file vox/mapper.vox \
 		--preload-file vox/openbmc.vox \
 		--preload-file vox/player.vox \
+		--preload-file vox/em.vox \
+		--preload-file vox/ipmi.vox \
 		--preload-file shaders/hellotriangle.fs \
 		--preload-file shaders/hellotriangle.vs \
 		--preload-file shaders/palettescene.vs \

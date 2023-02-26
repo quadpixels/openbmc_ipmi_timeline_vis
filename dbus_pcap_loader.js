@@ -162,12 +162,21 @@ function OpenDBusPcapFile(file_name) {
 
         dbus_timeline_view.IsCanvasDirty = true;
         if (dbus_timeline_view.IsEmpty() == false ||
-            ipmi_timeline_view.IsEmpty() == false) {
+            ipmi_timeline_view.IsEmpty() == false ||
+            MCTP_Data.length > 0) {
           dbus_timeline_view.CurrentFileName = file_name;
           ipmi_timeline_view.CurrentFileName = file_name;
           HideWelcomeScreen();
-          ShowDBusTimeline();
-          ShowIPMITimeline();
+
+          if (dbus_timeline_view.IsEmpty() == false) {
+            ShowDBusTimeline();
+          }
+          if (ipmi_timeline_view.IsEmpty() == false) {
+            ShowIPMITimeline();
+          }
+          if (MCTP_Data.length > 0) {
+            ShowMCTPTimeline();
+          }
           ShowNavigation();
           UpdateFileNamesString();
         }
@@ -237,7 +246,6 @@ const IDX_PAYLOAD = 10;  // Payload of method call and serial
 
 // Called by CXX
 function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destination, path, iface, member, body) {
-  
   const millis = Date.now();
   if (millis - g_last_update_millis > 100) { // Refresh at most 10 times per second
     let pct = parseInt(g_num_packets_parsed * 100 / g_num_packets_total);
@@ -323,6 +331,18 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
   }
 }
 
+// MCTP packages may be fragmented; in this case, each packet is a fragment.
+// The CXX side is resopnsible for:
+// - assembling the complete request-response pairs.
+// - notifying the JS code of incomplete (not-serviced) requests.
+function OnNewMCTPRequestAndResponse(src_eid, dest_eid, t0, t1, frag_count, desc) {
+  MCTP_Data.push([src_eid, dest_eid, t0, t1, desc, frag_count]);
+}
+
+function OnNewMCTPUnmatchedRequest(src_eid, dest_eid, t0, desc) {
+  MCTP_Data.push([src_eid, dest_eid, t0, undefined, desc, undefined]);
+}
+
 function OnFinishParsingDBusPcap() {
   HideBlocker();
 
@@ -336,16 +356,25 @@ function OnFinishParsingDBusPcap() {
   GenerateTimeLine_DBus(grouped);
   dbus_timeline_view.IsCanvasDirty = true;
   if (dbus_timeline_view.IsEmpty() == false ||
-      ipmi_timeline_view.IsEmpty() == false) {
+      ipmi_timeline_view.IsEmpty() == false ||
+      MCTP_Data.length > 0) {
     dbus_timeline_view.CurrentFileName = file_name;
     ipmi_timeline_view.CurrentFileName = file_name;
     HideWelcomeScreen();
-    ShowDBusTimeline();
-    ShowIPMITimeline();
+    if (dbus_timeline_view.IsEmpty() == false) {
+      ShowDBusTimeline();
+    }
+    if (g_ipmi_parsed_entries.length > 0) {
+      ShowIPMITimeline();
+    }
+    if (MCTP_Data.length > 0) {
+      ShowMCTPTimeline();
+    }
     ShowNavigation();
     UpdateFileNamesString();
   }
   if (g_ipmi_parsed_entries.length > 0) UpdateLayout();  // Updates IPMI view.
+  if (MCTP_Data.length > 0) OnGroupByConditionChanged_MCTP(); // Updates MCTP view
   OnGroupByConditionChanged_DBus(); // Need this for initial layout computation upon loading pcap file
   g_btn_zoom_reset.click(); // Zoom to capture time range
 }

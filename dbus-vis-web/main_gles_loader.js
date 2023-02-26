@@ -27,7 +27,6 @@ function RemoveFancyVis() {
   document.getElementById("main_gles_div").style.display="none";
 }
 
-let g_is_replaying = false;
 let g_replay_msg_idx = 0;
 let g_replay_time = 0;
 let g_replay_t0 = 0;

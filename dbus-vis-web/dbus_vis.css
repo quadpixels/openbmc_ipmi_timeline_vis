@@ -50,7 +50,11 @@ body {
 	border: 1px #c03030 solid
 }
 
-#my_canvas_dbus, #my_canvas_ipmi, #my_canvas_boost_asio_handler, #my_canvas_sensors {
+#my_canvas_mctp, #span_group_by_mctp {
+	border: 1px #99f solid
+}
+
+#my_canvas_dbus, #my_canvas_ipmi, #my_canvas_boost_asio_handler, #my_canvas_sensors, #my_canvas_mctp {
   margin-left: auto;
   margin-right: auto;
 }

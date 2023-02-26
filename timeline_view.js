@@ -14,7 +14,6 @@ const HISTOGRAM_W = 100, HISTOGRAM_H = LINE_SPACING;
 const HISTOGRAM_X = 270;
 const SCROLL_BAR_WIDTH = 16;
 
-
 // Data
 var HistoryHistogram = [];
 
@@ -22,6 +21,7 @@ let Intervals = [];
 let Titles = [];
 let GroupBy = [];
 let GroupByStr = '';
+let g_is_replaying = false;
 
 // (NetFn, Cmd) -> [ Bucket Indexes ]
 // Normalized (0~1) bucket index for the currently highlighted IPMI requests
@@ -1990,4 +1990,11 @@ class BoostASIOHandlerTimelineView extends TimelineView {
           labels[i], dx + PAD, dy + PAD + i * LINE_SPACING + LINE_SPACING / 2);
     }
   }
-}
+};
+
+class MCTPTimelineView extends TimelineView {
+  RenderToolTip(
+    ctx, theHoveredReq, theHoveredInterval, toFixedPrecision, height) {
+    // No-op
+  }
+};

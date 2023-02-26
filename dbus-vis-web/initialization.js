@@ -7,25 +7,30 @@ function Init() {
     dbus_timeline_view.Canvas = document.getElementById('my_canvas_dbus');
     boost_asio_handler_timeline_view.Canvas =
         document.getElementById('my_canvas_boost_asio_handler');
+    mctp_timeline_view.Canvas = document.getElementById('my_canvas_mctp');
   
     // Hide all canvases until the user loads files
     ipmi_timeline_view.Canvas.style.display = 'none';
     dbus_timeline_view.Canvas.style.display = 'none';
     boost_asio_handler_timeline_view.Canvas.style.display = 'none';
+    mctp_timeline_view.Canvas.style.display = 'none';
   
     let v1 = ipmi_timeline_view;
     let v2 = dbus_timeline_view;
     let v3 = boost_asio_handler_timeline_view;
+    let v4 = mctp_timeline_view;
   
     // Link views
-    v1.linked_views = [v2, v3];
-    v2.linked_views = [v1, v3];
-    v3.linked_views = [v1, v2];
+    v1.linked_views = [v2, v3, v4];
+    v2.linked_views = [v1, v3, v4];
+    v3.linked_views = [v1, v2, v4];
+    v4.linked_views = [v1, v2, v3];
   
     // Set accent color
     v1.AccentColor = 'rgba(0,224,224,0.5)';
     v2.AccentColor = 'rgba(0,128,0,  0.5)';
     v3.AccentColor = '#E22';
+    v4.AccentColor = '#99F';
 
     DragElement(document.getElementById("highlighted_messages"));
     DragElement(document.getElementById("main_gles_div"));
@@ -102,9 +107,11 @@ var g_group_by_dbus = document.getElementById('span_group_by_dbus');
 var g_group_by_ipmi = document.getElementById('span_group_by_ipmi');
 var g_group_by_asio =
     document.getElementById('span_group_by_boost_asio_handler')
+var g_group_by_mctp = document.getElementById('span_group_by_mctp');
 var g_canvas_ipmi = document.getElementById('my_canvas_ipmi');
 var g_canvas_dbus = document.getElementById('my_canvas_dbus');
 var g_canvas_asio = document.getElementById('my_canvas_boost_asio_handler');
+var g_canvas_mctp = document.getElementById('my_canvas_mctp');
 
 var g_dbus_pcap_status_content = document.getElementById('dbus_pcap_status_content');
 var g_dbus_pcap_error_content = document.getElementById('dbus_pcap_error_content');
@@ -126,6 +133,10 @@ function ShowIPMITimeline() {
 function ShowASIOTimeline() {
   g_canvas_asio.style.display = 'block';
   g_group_by_asio.style.display = 'block';
+}
+function ShowMCTPTimeline() {
+  g_canvas_mctp.style.display = 'block';
+  g_group_by_mctp.style.display = 'block';
 }
 
 document.getElementById('file-input').addEventListener('change', ReadFile, false);

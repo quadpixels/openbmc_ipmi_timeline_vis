@@ -1,7 +1,10 @@
 const { ipcRenderer } = require('electron');
 const { spawnSync } = require('child_process');
+const { fs } = require('file-system');
 const md5File = require('md5-file');
 const https = require('https');
+
+var g_dbus_pcap_module = undefined;
 
 // "dbus_pcap": Run dbus_pcap and parse
 // "transpiled": Use .JS transpiled from libpcap
@@ -175,29 +178,40 @@ function Init() {
   dbus_timeline_view.Canvas = document.getElementById('my_canvas_dbus');
   boost_asio_handler_timeline_view.Canvas =
       document.getElementById('my_canvas_boost_asio_handler');
+  mctp_timeline_view.Canvas = document.getElementById('my_canvas_mctp');
 
   // Hide all canvases until the user loads files
   ipmi_timeline_view.Canvas.style.display = 'none';
   dbus_timeline_view.Canvas.style.display = 'none';
   boost_asio_handler_timeline_view.Canvas.style.display = 'none';
+  mctp_timeline_view.Canvas.style.display = 'none';
 
   let v1 = ipmi_timeline_view;
   let v2 = dbus_timeline_view;
   let v3 = boost_asio_handler_timeline_view;
+  let v4 = mctp_timeline_view;
 
   // Link views
-  v1.linked_views = [v2, v3];
-  v2.linked_views = [v1, v3];
-  v3.linked_views = [v1, v2];
+  v1.linked_views = [v2, v3, v4];
+  v2.linked_views = [v1, v3, v4];
+  v3.linked_views = [v1, v2, v4];
+  v4.linked_views = [v1, v2, v3];
 
   // Set accent color
   v1.AccentColor = 'rgba(0,224,224,0.5)';
   v2.AccentColor = 'rgba(0,128,0,  0.5)';
   v3.AccentColor = '#E22';
+  v4.AccentColor = '#99F';
 
   CheckDependencies();
 
   DragElement(document.getElementById("highlighted_messages"));
+
+  // Resolve this promise
+  new DBusPCAPModule().then(m => {
+    g_dbus_pcap_module = m;
+    console.log("DBus PCAP Module Initialized.");
+  });
 }
 
 var g_WelcomeScreen = document.getElementById('welcome_screen');

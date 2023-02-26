@@ -65,6 +65,8 @@ document.getElementById('btn_zoom_reset').addEventListener('click', function() {
       RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
   boost_asio_handler_timeline_view.BeginSetBoundaryAnimation(
       RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
+  mctp_timeline_view.BeginSetBoundaryAnimation(
+      RANGE_LEFT_INIT, RANGE_RIGHT_INIT)
 })
 
 // Generate replay

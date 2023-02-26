@@ -30,6 +30,7 @@
 #include <pcap/pcap.h>
 
 #include "pcap_analyzer.hpp"
+#include "nvme-mi.h"
 
 int g_num_packets = 0;
 
@@ -44,6 +45,7 @@ int g_pcap_buf_size = 0;
 std::vector<uint8_t> g_pcap_buf;
 void StartSendPCAPByteArray(int buf_size) {
 	g_pcap_buf_size = buf_size;
+
 }
 
 void SendPCAPByteArrayChunk(char* buf, int len) {
@@ -371,7 +373,7 @@ bool ParseHeaderAndBody(const unsigned char* data, int len, FixedHeader* fixed_o
 			}
 		}
 	}
-	return true;
+	return (fields.empty() == false);
 }
 
 // Parse fixed-size DBus types (byte, boolean, [u]int16, [u]int32, [u]int64, double, fd)
@@ -594,9 +596,9 @@ void do_PrintDBusType(const DBusType& x, const int indent) {
 		} else if (std::holds_alternative<int32_t>(v)) {
 			printf("i %d\n", std::get<int32_t>(v));
 		} else if (std::holds_alternative<uint64_t>(v)) {
-			printf("t %lu\n", std::get<uint64_t>(v));
+			printf("t %llu\n", std::get<uint64_t>(v));
 		} else if (std::holds_alternative<int64_t>(v)) {
-			printf("x %ld\n", std::get<int64_t>(v));
+			printf("x %lld\n", std::get<int64_t>(v));
 		} else if (std::holds_alternative<double>(v)) {
 			printf("d %g\n", std::get<double>(v));
 		} else if (std::holds_alternative<std::string>(v)) {
@@ -698,16 +700,154 @@ std::string DBusBodyToJSON(const std::vector<DBusType>& body) {
 	return ss.str();
 }
 
-// Process 1 packet
+std::string GetNVMeMIDesc(uint8_t byte21, uint8_t byte22, uint8_t byte24, int caplen) {
+	std::string ret;
+	char buf[100];
+	snprintf(buf, 100, "NVMe-MI (0x%02x, 0x%02x)", byte21, byte24);
+	ret = buf;
+	printf("caplen=%d\n", caplen);
+	if (caplen == 23) {
+		if (byte21 == 0x80) {
+			switch (byte22) {
+				case 0x02: ret = "MCTP Get Endpoint ID"; break;
+				case 0x03: ret = "MCTP Get Endpoint UUID"; break;
+				case 0x05: ret = "MCTP Get Message Type Support"; break;
+			}
+		}
+	} else {
+		if (byte21 == 0x08) {
+			switch ((unsigned char)byte24) {
+				case 0x01: ret = "NVM Subsystem Health Status Poll"; break;
+				default: break;
+			}
+		} else {
+			switch ((unsigned char)byte24) {
+				case 0x02: ret = "Get Log Page"; break;
+				case 0x06: ret = "Identify"; break;
+				case 0xfa: ret = "VU Command"; break;
+			}
+		}
+	}
+	return ret;
+}
+
+std::string GetMCTPDesc(uint8_t byte21, uint8_t byte22, uint8_t byte24, int caplen) {
+	std::string ret;
+	char buf[100];
+	snprintf(buf, 100, "NVMe-MI (0x%02x, 0x%02x)", byte21, byte24);
+	ret = buf;
+	printf("caplen=%d\n", caplen);
+	if (caplen == 23) {
+		if (byte21 == 0x80) {
+			switch (byte22) {
+				case 0x02: ret = "MCTP Get Endpoint ID"; break;
+				case 0x03: ret = "MCTP Get Endpoint UUID"; break;
+				case 0x05: ret = "MCTP Get Message Type Support"; break;
+			}
+		}
+	} else {
+		if (byte21 == 0x08) {
+			switch ((unsigned char)byte24) {
+				case 0x01: ret = "NVM Subsystem Health Status Poll"; break;
+				default: break;
+			}
+		} else {
+			switch ((unsigned char)byte24) {
+				case 0x02: ret = "Get Log Page"; break;
+				case 0x06: ret = "Identify"; break;
+				case 0xfa: ret = "VU Command"; break;
+			}
+		}
+	}
+	return ret;
+}
+
+std::map<int, MCTPRequest> g_inflight_mctp_reqs;
+int g_num_mctp_reqs = 0;
+int g_num_mctp_reqs_matched = 0;
+int g_num_mctp_responses = 0;
+
+// Process 1 packet.
+//
+// We support DBus and MCTP packets for now.
+//
 static void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthdr, const unsigned char* packet) {
 	const struct timeval& ts = pkthdr->ts;
 	double sec = ts.tv_sec * 1.0 + ts.tv_usec / 1000000.0;
 
-	//printf("Timestamp: %.6f\n", sec);
-
 	int caplen = pkthdr->caplen, len = pkthdr->len;
 
-	if (caplen >= 12) {
+	// Try parsing as MCTP packet
+	if (caplen >= 16 && packet[14] == 0x00 && packet[15] == 0xfa) {
+		const mctp_header* mh = reinterpret_cast<
+			const mctp_header*>(packet + 16);
+		printf("MCTP: ver %u, src_eid: %u, dest_eid: %u ",
+			mh->ver_resv, mh->src_eid, mh->dest_eid);
+		uint8_t byte19 = packet[19];
+		bool som = 0x80 & byte19, eom = 0x40 & byte19;
+		printf("[%c%c] ", (som?'S':' '), (eom?'E':' '));
+		bool owner = 0x08 & byte19;
+		printf("%s ", owner ? "Send":"Recv");
+
+		uint8_t byte21 = 0, byte22 = 0, byte24 = 0;
+		if (caplen >= 23) {
+			byte21 = packet[21]; byte22 = packet[22];
+		}
+		if (caplen >= 24) {
+			if (packet[20] == 0x84) {  // NVMe-MI
+				byte21 = packet[21]; byte24 = packet[24];
+			}
+		}
+
+		if (som) {
+			if (owner) {
+				MCTPRequest r;
+				r.frag_count = 1;
+				r.t0 = sec;
+				r.from_eid = mh->src_eid;
+				r.to_eid   = mh->dest_eid;
+				r.desc     = GetMCTPDesc(byte21, byte22, byte24, caplen);
+				g_inflight_mctp_reqs[r.from_eid] = r;
+			}
+		}
+
+		if (eom) {
+			if (owner) {
+				g_num_mctp_reqs ++;
+			} else {
+				if (g_inflight_mctp_reqs.count(mh->dest_eid) > 0) {
+					MCTPRequest& r = g_inflight_mctp_reqs[mh->dest_eid];
+					r.t1 = sec;
+					r.frag_count ++;
+					g_inflight_mctp_reqs.erase(mh->dest_eid);
+					g_num_mctp_reqs_matched ++;
+
+					#ifdef DBUS_PCAP_USING_EMSCRIPTEN
+					EM_ASM_ARGS({
+						OnNewMCTPRequestAndResponse(
+							$0,  // source EID
+							$1,  // destination EID
+							$2,  // start time
+							$3,  // end time
+							$4,  // fragment count
+							UTF8ToString($5)  // description
+							)
+					}, r.from_eid, r.to_eid, r.t0, r.t1, r.frag_count, r.desc.c_str());
+					#endif
+
+				}
+				g_num_mctp_responses ++;
+			}
+		}
+
+		if (som==false && eom==false) {
+			if (g_inflight_mctp_reqs.count(mh->src_eid) > 0) {
+				g_inflight_mctp_reqs[mh->src_eid].frag_count ++;
+			}
+		}
+
+		printf("\n");
+	} else if (caplen >= 12) {
 		AlignedStream s;
 		MessageEndian endian;
 		FixedHeader fixed;
@@ -844,6 +984,8 @@ void ProcessByteArray(const std::vector<uint8_t>& buf) {
 		printf("pcap_loop failed:, rc=%d, errbuf=%s\n",
 			rc, errbuf);
 		printf("%d packets processed so far\n", g_num_packets);
+		printf("%d MCTP reqs %d matched; %d MCTP responses\n",
+			g_num_mctp_reqs, g_num_mctp_reqs_matched, g_num_mctp_responses);
 		return;
 	}
 	pcap_close(the_pcap);

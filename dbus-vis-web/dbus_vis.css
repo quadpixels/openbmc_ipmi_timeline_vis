@@ -113,7 +113,7 @@ body {
 }
 
 #span_group_by_dbus, #span_group_by_ipmi, #span_group_by_boost_asio_handler,
-#div_navi_and_replay{
+#div_navi_and_replay, #span_group_by_mctp{
   display: none;
 }
 

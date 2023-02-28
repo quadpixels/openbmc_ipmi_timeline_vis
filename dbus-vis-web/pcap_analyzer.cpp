@@ -39,13 +39,24 @@ PacketCallback g_callback;
 
 #ifdef DBUS_PCAP_USING_EMSCRIPTEN
 
+std::map<int, MCTPRequest> g_inflight_mctp_reqs;
+std::vector<MCTPRequest> g_unfinished_mctp_reqs;
+int g_num_mctp_reqs = 0;
+int g_num_mctp_reqs_matched = 0;
+int g_num_mctp_responses = 0;
+
 extern "C" {
 
 int g_pcap_buf_size = 0;
+
 std::vector<uint8_t> g_pcap_buf;
 void StartSendPCAPByteArray(int buf_size) {
 	g_pcap_buf_size = buf_size;
-
+	g_inflight_mctp_reqs.clear();
+	g_unfinished_mctp_reqs.clear();
+	g_num_mctp_reqs = 0;
+	g_num_mctp_reqs_matched = 0;
+	g_num_mctp_responses = 0;
 }
 
 void SendPCAPByteArrayChunk(char* buf, int len) {
@@ -762,11 +773,6 @@ std::string GetMCTPDesc(uint8_t byte21, uint8_t byte22, uint8_t byte24, int capl
 	return ret;
 }
 
-std::map<int, MCTPRequest> g_inflight_mctp_reqs;
-int g_num_mctp_reqs = 0;
-int g_num_mctp_reqs_matched = 0;
-int g_num_mctp_responses = 0;
-
 // Process 1 packet.
 //
 // We support DBus and MCTP packets for now.
@@ -807,6 +813,13 @@ static void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthd
 				r.from_eid = mh->src_eid;
 				r.to_eid   = mh->dest_eid;
 				r.desc     = GetMCTPDesc(byte21, byte22, byte24, caplen);
+
+				// Existing: copy to unfinished
+				if (g_inflight_mctp_reqs.count(r.from_eid) > 0) {
+					g_unfinished_mctp_reqs.push_back(g_inflight_mctp_reqs[r.from_eid]);
+					g_inflight_mctp_reqs.erase(r.from_eid);
+				}
+
 				g_inflight_mctp_reqs[r.from_eid] = r;
 			}
 		}
@@ -951,6 +964,25 @@ void SetPCAPCallback(PacketCallback cb) {
 	g_callback = cb;
 }
 
+void ProcessUnfinishedMCTPRequests() {
+	for (const auto& entry : g_inflight_mctp_reqs) {
+		g_unfinished_mctp_reqs.push_back(entry.second);
+	}
+	g_inflight_mctp_reqs.clear();
+	for (const MCTPRequest& r : g_unfinished_mctp_reqs) {
+		#ifdef DBUS_PCAP_USING_EMSCRIPTEN
+		EM_ASM_ARGS({
+			OnNewMCTPUnmatchedRequest(
+				$0,                // Source EID
+				$1,                // Destination EID,
+				$2,                // Timestamp,
+				UTF8ToString($3),  // Description
+			)
+		}, r.from_eid, r.to_eid, r.t0, r.desc.c_str());
+		#endif
+	}
+}
+
 void ProcessByteArray(const std::vector<uint8_t>& buf) {
 	if (g_callback == nullptr) {
 		printf("Using default callback.\n");
@@ -988,6 +1020,12 @@ void ProcessByteArray(const std::vector<uint8_t>& buf) {
 			g_num_mctp_reqs, g_num_mctp_reqs_matched, g_num_mctp_responses);
 		return;
 	}
+
+	ProcessUnfinishedMCTPRequests();
+
+	// Process un-finished MCTP message pairs
+
+
 	pcap_close(the_pcap);
 	printf("%d packets in file\n", g_num_packets);
 }

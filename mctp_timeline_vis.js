@@ -83,7 +83,8 @@ function GenerateTimeLine_MCTP(grouped) {
       let t1 = parseFloat(entry[3]) - g_StartingSec;
       line.push([t0, t1, entry, 'ok', 0]);
 
-      RANGE_RIGHT_INIT = Math.max(RANGE_RIGHT_INIT, t1);
+      RANGE_RIGHT_INIT = Math.max(RANGE_RIGHT_INIT,
+        (isNaN(t1) ? t0 : t1));
       RANGE_LEFT_INIT  = Math.min(RANGE_LEFT_INIT,  t0);
     }
     intervals.push(line);

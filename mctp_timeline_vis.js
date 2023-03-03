@@ -56,7 +56,11 @@ function OnGroupByConditionChanged_MCTP() {
       v.GroupByStr += cb.value;
     }
   }
-  let preproc = MCTP_Data;
+  let preproc = MCTP_Data.slice();
+  preproc.sort((a, b) => {
+    if (a[2] > b[2]) return 1;
+    else return -1;
+  });
   let grouped = Group_MCTP(preproc, v.GroupBy);
   GenerateTimeLine_MCTP(grouped);
   mctp_timeline_view.IsCanvasDirty = true;

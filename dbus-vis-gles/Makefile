@@ -14,6 +14,9 @@ sprite.o: sprite.cpp
 dbus_pcap_scene.o: dbus_pcap_scene.cpp
 	g++ $< -c $(CXXFLAGS) -o $@
 
+accompaniment_scene.o: accompaniment_scene.cpp
+	g++ $< -c $(CXXFLAGS) -o $@
+
 chunkindex.o: chunkindex.cpp
 	g++ $< -c $(CXXFLAGS) -o $@
 
@@ -32,10 +35,10 @@ util.o: util.cpp
 scene.o: scene.cpp
 	g++ $< -c $(CXXFLAGS) -o $@
 
-main_gles: main_gles.cpp util.o scene.o camera.o chunk.o rendertarget.o chunkindex.o sprite.o dbus_pcap_scene.o pcap_analyzer.o animator.o
+main_gles: main_gles.cpp util.o scene.o camera.o chunk.o rendertarget.o chunkindex.o sprite.o dbus_pcap_scene.o pcap_analyzer.o animator.o accompaniment_scene.o
 	g++ $^ $(CXXFLAGS) -o main_gles -lglfw -lGLESv2 -lpcap -lpthread
 
-main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget.cpp chunkindex.cpp sprite.cpp dbus_pcap_scene.cpp animator.cpp
+main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget.cpp chunkindex.cpp sprite.cpp dbus_pcap_scene.cpp animator.cpp accompaniment_scene.cpp
 	@echo "Will need to first activate the Emscripten SDK."
 	@em++ $^ -O2 -o $@ --use-preload-plugins -s USE_WEBGL2=1 -s USE_GLFW=3 \
 		-s FULL_ES3=1 -s FULL_ES2=1 \
@@ -54,6 +57,7 @@ main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget
 		--preload-file vox/player.vox \
 		--preload-file vox/em.vox \
 		--preload-file vox/ipmi.vox \
+		--preload-file vox/sxqn.vox \
 		--preload-file shaders/hellotriangle.fs \
 		--preload-file shaders/hellotriangle.vs \
 		--preload-file shaders/palettescene.vs \
@@ -68,5 +72,5 @@ main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget
 clean:
 	@for x in util.o scene.o rendertarget.o chunk.o camera.o\
 	  chunkindex.o dbus_pcap_scene.o sprite.o main_gles.js \
-	  pcap_analyzer.o animator.o \
+	  pcap_analyzer.o animator.o accompaniment_scene.o \
 	  main_gles; do [ -f $$x ] && rm -v $$x ; done

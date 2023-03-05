@@ -225,3 +225,29 @@ public:
   void DBusMakeMethodCall(const std::string& from, const std::string& to, const std::string& path, const std::string& iface, const std::string& member);
   void DBusEmitSignal(const std::string& from, const std::string& path, const std::string& iface, const std::string& member);
 };
+
+class AccompanimentScene : public Scene {
+public:
+  enum AssetID {
+    Scene20230226,
+  };
+
+  std::unordered_map<AssetID, ChunkIndex*> chunk_assets;
+  OneChunkScene::Backdrop* backdrop;
+  Camera camera;
+  DirectionalLight* directional_light;
+  DepthOnlyFBO* depth_fbo;
+  glm::mat4 projection_matrix;
+
+  struct SpriteAndProperty {
+    SpriteAndProperty() {}
+    ChunkSprite* sprite;
+  };
+
+  AccompanimentScene();
+  void Render();
+  void Update(float secs);
+  SpriteAndProperty* CreateSprite(AssetID asset_id, const glm::vec3& pos);
+
+  std::vector<struct SpriteAndProperty*> sprites;
+};

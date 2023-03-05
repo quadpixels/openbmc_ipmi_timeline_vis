@@ -38,6 +38,7 @@ PaletteScene*       g_paletteview;
 RotatingCubeScene*  g_rotating_cube;
 TextureScene*       g_texture_scene;
 DBusPCAPScene*      g_dbuspcap_scene;
+AccompanimentScene* g_accompaniment_scene;
 
 #ifdef __EMSCRIPTEN__
 extern "C" {
@@ -86,6 +87,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     case GLFW_KEY_4: g_curr_scene = g_onechunk; break;
     case GLFW_KEY_5: g_curr_scene = g_texture_scene; break;
     case GLFW_KEY_6: g_curr_scene = g_dbuspcap_scene; break;
+    case GLFW_KEY_7: g_curr_scene = g_accompaniment_scene; break;
     case GLFW_KEY_Q: {
       if (g_curr_scene == g_dbuspcap_scene) {
         g_dbuspcap_scene->Test1();
@@ -108,6 +110,7 @@ void MyInit() {
   g_onechunk = new OneChunkScene();
   g_texture_scene = new TextureScene();
   g_dbuspcap_scene = new DBusPCAPScene();
+  g_accompaniment_scene = new AccompanimentScene();
 
   Chunk::shader_program = BuildShaderProgram("shaders/vert_norm_data_ao.vs", "shaders/vert_norm_data_ao.fs");
   MyCheckError("Build Chunk's shader program");

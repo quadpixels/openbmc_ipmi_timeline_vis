@@ -230,6 +230,7 @@ class AccompanimentScene : public Scene {
 public:
   enum AssetID {
     Scene20230226,
+    NarcissusTazetta,
   };
 
   std::unordered_map<AssetID, ChunkIndex*> chunk_assets;
@@ -238,10 +239,15 @@ public:
   DirectionalLight* directional_light;
   DepthOnlyFBO* depth_fbo;
   glm::mat4 projection_matrix;
+  float seconds;
 
   struct SpriteAndProperty {
-    SpriteAndProperty() {}
+    SpriteAndProperty() : sprite(nullptr), tag(0) {}
     ChunkSprite* sprite;
+
+    char tag;
+    float phase; // 跳越时的phase
+    glm::vec3 pos0;
   };
 
   AccompanimentScene();

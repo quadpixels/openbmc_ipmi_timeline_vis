@@ -11,6 +11,7 @@ public:
   Camera();
   glm::mat4 GetViewMatrix();
   void Update(float);
+  void CrystalBall(const glm::vec3& from);
   glm::vec3 pos, lookdir, up;
 };
 
@@ -19,5 +20,6 @@ public:
   glm::mat4 P, V;
   glm::vec3 dir, pos;
   DirectionalLight();
-  DirectionalLight(const glm::vec3& dir, const glm::vec3& pos);
+  DirectionalLight(const glm::vec3& dir, const glm::vec3& pos,
+    float z_min = -100.0f, float z_max = 340.0f);
 };

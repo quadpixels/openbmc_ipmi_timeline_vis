@@ -37,13 +37,13 @@ int g_num_packets = 0;
 void PrintByteArray(const std::vector<uint8_t>&, const int);
 PacketCallback g_callback;
 
-#ifdef DBUS_PCAP_USING_EMSCRIPTEN
-
-std::map<int, MCTPRequest> g_inflight_mctp_reqs;
+std::map<std::pair<int, int>, MCTPRequest> g_inflight_mctp_reqs;
 std::vector<MCTPRequest> g_unfinished_mctp_reqs;
 int g_num_mctp_reqs = 0;
 int g_num_mctp_reqs_matched = 0;
 int g_num_mctp_responses = 0;
+
+#ifdef DBUS_PCAP_USING_EMSCRIPTEN
 
 extern "C" {
 
@@ -815,12 +815,13 @@ static void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthd
 				r.desc     = GetMCTPDesc(byte21, byte22, byte24, caplen);
 
 				// Existing: copy to unfinished
-				if (g_inflight_mctp_reqs.count(r.from_eid) > 0) {
-					g_unfinished_mctp_reqs.push_back(g_inflight_mctp_reqs[r.from_eid]);
-					g_inflight_mctp_reqs.erase(r.from_eid);
+				std::pair<int, int> key = std::make_pair(r.from_eid, r.to_eid);
+				if (g_inflight_mctp_reqs.count(key) > 0) {
+					g_unfinished_mctp_reqs.push_back(g_inflight_mctp_reqs[key]);
+					g_inflight_mctp_reqs.erase(key);
 				}
 
-				g_inflight_mctp_reqs[r.from_eid] = r;
+				g_inflight_mctp_reqs[key] = r;
 			}
 		}
 
@@ -828,13 +829,12 @@ static void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthd
 			if (owner) {
 				g_num_mctp_reqs ++;
 			} else {
-				if (g_inflight_mctp_reqs.count(mh->dest_eid) > 0) {
-					MCTPRequest& r = g_inflight_mctp_reqs[mh->dest_eid];
+				std::pair<int, int> key = std::make_pair(mh->dest_eid, mh->src_eid);
+				if (g_inflight_mctp_reqs.count(key) > 0) {
+					MCTPRequest& r = g_inflight_mctp_reqs.at(key);
 					r.t1 = sec;
 					r.frag_count ++;
-					g_inflight_mctp_reqs.erase(mh->dest_eid);
 					g_num_mctp_reqs_matched ++;
-
 					#ifdef DBUS_PCAP_USING_EMSCRIPTEN
 					EM_ASM_ARGS({
 						OnNewMCTPRequestAndResponse(
@@ -847,15 +847,16 @@ static void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthd
 							)
 					}, r.from_eid, r.to_eid, r.t0, r.t1, r.frag_count, r.desc.c_str());
 					#endif
-
+					g_inflight_mctp_reqs.erase(key);
 				}
 				g_num_mctp_responses ++;
 			}
 		}
 
 		if (som==false && eom==false) {
-			if (g_inflight_mctp_reqs.count(mh->src_eid) > 0) {
-				g_inflight_mctp_reqs[mh->src_eid].frag_count ++;
+			std::pair<int, int> key = std::make_pair(mh->src_eid, mh->dest_eid);
+			if (g_inflight_mctp_reqs.count(key) > 0) {
+				g_inflight_mctp_reqs[key].frag_count ++;
 			}
 		}
 

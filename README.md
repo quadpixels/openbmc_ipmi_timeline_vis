@@ -1,24 +1,33 @@
-This program visualizes IPMI traffic for OpenBMC-based systems. It allows the user to pan, zoom and highlight the timeframe, as well as inspect the distribution of the time it takes ipmid to process the message, and generate commands to replay those IPMI requests by talking to `ipmid` directly.
+## What is `dbus-vis-web`
 
-1440x900 (WSXGA+) or higher screen resolution (or equivalent logic pixel dimension for HiDPI displays) recommended.
+This program (which runs both in a [web page](https://quadpixels.github.io/openbmc_ipmi_timeline_vis/dbus-vis-web/index.html) and in Electron.js) visualizes PCAP files captured on an OpenBMC system in a time-line format.
 
-Its inputs are DBus traffic dumps that involve DBus signals and method calls launched against the IPMI daemon (ipmid). To be specific, there are two possible ways:
+This tool can be thought of as a visual version of Wireshark with a focus on OpenBMC-related packet captures. It visualizes:
+- DBus packet capture obtained through `busctl capture`.
+  - DBus packet captures expose an abundance of information about the operation of an OpenBMC system.
+- MCTP packet capture obtained through `tcpdump -i mctpi2cX`.
+- Boost ASIO handler logs obtained by enabling the `BOOST_ASIO_ENABLE_HANDLER_TRACKING` flag.
 
-- For the "legacy" interface:
-  - A request is sent to IPMID by a DBus signal "ReceivedMessage". (The "ReceivedMessage" signal name actually means the bridge daemon (`btbridged`) "receives" a message from the "host".)
-  - The response is a method call "sendMessage" which means the bridge daemon sends a message response back to the "host".
+It parses the packet capture file using a WASM module compiled from CXX code with [EmScripten](https://emscripten.org/).
 
-- For the "new" interface:
-  - A request is a DBus method call "execute".
-  - The IPMI response is just the method response of this method call.
+The UI is inspired by CPU & GPU performance profilers and allows the user to pan, zoom and highlight the timeframe, as check simple statistics such as the number of messages and aggregate time.
 
-The input to this program is a text dump of DBus messages that may be obtained by the "dbus-monitor" command.
+## How to use
 
-This program uses Electron to run on a desktop computer (should be compatible with Windows, Linux, Mac and ChromeOS.)
-To build and run:
+* For the web version, click this page: [https://quadpixels.github.io/openbmc_ipmi_timeline_vis/dbus-vis-web/index.html](https://quadpixels.github.io/openbmc_ipmi_timeline_vis/dbus-vis-web/index.html)
 
-1. `npm install`
+* For the Electron.js version:
+  Clone the code base and:
 
-2. `npm start`
+  1. `npm install`
+
+  2. `npm start`
 
 ![Image](./scrnshot.png)
+
+<hr/>
+
+<span style="font-size:1.2em; color:#ccc; font-family:monospace">Bonus feature</span>
+<span style="font-size:0.7em; color:#ccc; font-family:monospace">
+A voxel scene modeled with <a href="https://ephtracy.github.io" style="color:#aaa">MagicaVoxel</a> and rendered with GLES (which also gets compiled to WebGL by EmScripten and runs in a browser) can be activated by clicking the 2 buttons located on the bottom-left of the UI :D
+</span>

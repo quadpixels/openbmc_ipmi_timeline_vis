@@ -813,6 +813,11 @@ static void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthd
 				r.from_eid = mh->src_eid;
 				r.to_eid   = mh->dest_eid;
 				r.desc     = GetMCTPDesc(byte21, byte22, byte24, caplen);
+				r.num_bytes = caplen;
+				if (r.desc.find("Get Log Page") != std::string::npos) {
+					r.log_page_id = 0xFF & packet[64];
+					printf("Log page %x\n", r.log_page_id.value());
+				}
 
 				// Existing: copy to unfinished
 				std::pair<int, int> key = std::make_pair(r.from_eid, r.to_eid);
@@ -835,6 +840,9 @@ static void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthd
 					r.t1 = sec;
 					r.frag_count ++;
 					g_num_mctp_reqs_matched ++;
+					r.notes = std::to_string(r.num_bytes) + " bytes, "
+					        + std::to_string(r.frag_count) + " fragments";
+
 					#ifdef DBUS_PCAP_USING_EMSCRIPTEN
 					EM_ASM_ARGS({
 						OnNewMCTPRequestAndResponse(
@@ -843,9 +851,13 @@ static void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthd
 							$2,  // start time
 							$3,  // end time
 							$4,  // fragment count
-							UTF8ToString($5)  // description
+							UTF8ToString($5),  // log page id
+							UTF8ToString($6),  // description
+							UTF8ToString($7)
 							)
-					}, r.from_eid, r.to_eid, r.t0, r.t1, r.frag_count, r.desc.c_str());
+					}, r.from_eid, r.to_eid, r.t0, r.t1, r.frag_count,
+					   (r.log_page_id.has_value() ? std::to_string(r.log_page_id.value()).c_str() : ""),
+					   r.desc.c_str(), r.notes.c_str());
 					#endif
 					g_inflight_mctp_reqs.erase(key);
 				}
@@ -854,9 +866,15 @@ static void MyCallback(unsigned char* user_data, const struct pcap_pkthdr* pkthd
 		}
 
 		if (som==false && eom==false) {
-			std::pair<int, int> key = std::make_pair(mh->src_eid, mh->dest_eid);
+			std::pair<int, int> key;
+			if (owner) {
+				key = std::make_pair(mh->src_eid, mh->dest_eid);
+			} else {
+				key = std::make_pair(mh->dest_eid, mh->src_eid);
+			}
 			if (g_inflight_mctp_reqs.count(key) > 0) {
 				g_inflight_mctp_reqs[key].frag_count ++;
+				g_inflight_mctp_reqs[key].num_bytes += caplen;
 			}
 		}
 

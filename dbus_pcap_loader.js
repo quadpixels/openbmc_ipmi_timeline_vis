@@ -335,12 +335,15 @@ function OnNewDBusMessage(timestamp, type, serial, reply_serial, sender, destina
 // The CXX side is resopnsible for:
 // - assembling the complete request-response pairs.
 // - notifying the JS code of incomplete (not-serviced) requests.
-function OnNewMCTPRequestAndResponse(src_eid, dest_eid, t0, t1, frag_count, desc) {
-  MCTP_Data.push([src_eid, dest_eid, t0, t1, desc, frag_count]);
+function OnNewMCTPRequestAndResponse(src_eid, dest_eid, t0, t1, frag_count, log_page_id, desc, notes) {
+  if (log_page_id != "") {
+    log_page_id = parseInt(log_page_id).toString(16);
+  }
+  MCTP_Data.push([src_eid, dest_eid, t0, t1, log_page_id, desc, frag_count, notes]);
 }
 
 function OnNewMCTPUnmatchedRequest(src_eid, dest_eid, t0, desc) {
-  MCTP_Data.push([src_eid, dest_eid, t0, undefined, desc, undefined]);
+  MCTP_Data.push([src_eid, dest_eid, t0, undefined, "", desc, undefined, "Request without response"]);
 }
 
 function OnFinishParsingDBusPcap() {

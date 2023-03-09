@@ -1,6 +1,8 @@
 #ifndef NVME_MI_H
 #define NVME_MI_H
 
+#include <optional>
+
 struct mctp_header {
 		uint8_t ver_resv;
 		uint8_t dest_eid;
@@ -26,8 +28,9 @@ struct MCTPRequest {
 	double t0 = 0, t1 = 0;
 	int from_eid, to_eid;
     int frag_count = 0;
-
-	std::string desc;
+	int num_bytes = 0;
+	std::optional<uint8_t> log_page_id;
+	std::string desc, notes;
 
 	std::string ToString() const {
 		char buf[100];

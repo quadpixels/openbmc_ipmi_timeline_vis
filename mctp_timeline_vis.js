@@ -9,7 +9,7 @@ const dummy_mctp_msgs = [
 
 {
   const tags = [
-    'mctp1', 'mctp2', 'mctp3'
+    'mctp1', 'mctp2', 'mctp3', 'mctp4'
   ];
   for (let i = 0; i < tags.length; i++) {
     document.getElementById(tags[i]).addEventListener(
@@ -25,7 +25,8 @@ function Group_MCTP(preprocessed, group_by) {
   const IDXES = {
     'Source EID': 0,
     'Destination EID': 1,
-    'Description': 4
+    'Description': 5,
+    'Log Page ID': 4,
   };
   for (let n=0; n<preprocessed.length; n++) {
     let key = '';
@@ -42,7 +43,7 @@ function Group_MCTP(preprocessed, group_by) {
 // Layout Processing
 
 function OnGroupByConditionChanged_MCTP() {
-  var tags = ['mctp1', 'mctp2', 'mctp3'];
+  var tags = ['mctp1', 'mctp2', 'mctp3', 'mctp4'];
   const v = mctp_timeline_view;
   v.GroupBy = [];
   v.GroupByStr = '';
@@ -151,8 +152,8 @@ Canvas_Mctp.onwheel = function(event) {
 function PopulateDummyMCTPTimeline() {
   MCTP_Data = dummy_mctp_msgs.slice();
   for (let x=4; x<12; x+=2) {
-    OnNewMCTPRequestAndResponse(10, 16, x, x+0.2, 5, "No desc");
-    OnNewMCTPRequestAndResponse(11, 16, x, x+0.2, 5, "No desc");
+    OnNewMCTPRequestAndResponse(10, 16, x, x+0.2, 5, undefined, "No desc", "No notes");
+    OnNewMCTPRequestAndResponse(11, 16, x, x+0.2, 5, undefined, "No desc", "No notes");
     OnNewMCTPUnmatchedRequest(12, 16, x, "No desc");
   }
   OnGroupByConditionChanged_MCTP();

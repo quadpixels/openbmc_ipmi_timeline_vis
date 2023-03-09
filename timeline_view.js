@@ -1995,6 +1995,26 @@ class BoostASIOHandlerTimelineView extends TimelineView {
 class MCTPTimelineView extends TimelineView {
   RenderToolTip(
     ctx, theHoveredReq, theHoveredInterval, toFixedPrecision, height) {
-    // No-op
+    if (theHoveredReq == undefined) {
+      return;
+    }
+    const PAD = 2, DELTA_Y = 14;
+
+    console.log(theHoveredReq);
+
+    let dx = this.MouseState.x, dy = this.MouseState.y + DELTA_Y;
+    let t = theHoveredReq[7];
+
+    let w = 1;
+    let h = LINE_SPACING;
+
+    w = ctx.measureText(t).width;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(dx, dy, w+2*PAD, h);
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(t, dx+PAD, dy+PAD + LINE_SPACING/2);
   }
 };

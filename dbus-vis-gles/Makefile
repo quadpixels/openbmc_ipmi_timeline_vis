@@ -58,6 +58,7 @@ main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget
 		--preload-file vox/em.vox \
 		--preload-file vox/ipmi.vox \
 		--preload-file vox/sxqn.vox \
+		--preload-file vox/label.vox \
 		--preload-file vox/narcissus_tazetta.vox \
 		--preload-file shaders/hellotriangle.fs \
 		--preload-file shaders/hellotriangle.vs \

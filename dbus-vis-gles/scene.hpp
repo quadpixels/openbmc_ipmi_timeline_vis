@@ -231,6 +231,7 @@ public:
   enum AssetID {
     Scene20230226,
     NarcissusTazetta,
+    Label20230226,
   };
 
   std::unordered_map<AssetID, ChunkIndex*> chunk_assets;

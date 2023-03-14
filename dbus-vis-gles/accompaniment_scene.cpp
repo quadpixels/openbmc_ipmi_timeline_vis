@@ -9,21 +9,28 @@ AccompanimentScene::AccompanimentScene() {
   seconds = 0;
   chunk_assets[AssetID::Scene20230226] = new ChunkGrid("vox/sxqn.vox");
   chunk_assets[AssetID::NarcissusTazetta] = new ChunkGrid("vox/narcissus_tazetta.vox");
+  chunk_assets[AssetID::Label20230226] = new ChunkGrid("vox/label.vox");
   backdrop = new OneChunkScene::Backdrop(200, 251);
   backdrop->pos = glm::vec3(0, -20, 0);
 
-  directional_light = new DirectionalLight(glm::vec3(-1,-3,0.4),
-    glm::vec3(1,3,-0.4)*50.0f,
+  directional_light = new DirectionalLight(glm::vec3(-0.2,-2,-1),
+    glm::vec3(0.2,2,1)*50.0f,
     -20.f, 250.0f);
   depth_fbo = new DepthOnlyFBO(WIN_W, WIN_H);
   const float ratio = WIN_W * 1.0f / WIN_H;
-  const float range_y = 60.0f;
+  const float range_y = 45.0f;
   // 用于显示的话，Y要倒过来
   //projection_matrix = glm::perspective(60.0f*3.14159f/180.0f, WIN_W*1.0f/WIN_H, 0.1f, 999.0f);
   projection_matrix = glm::ortho(-range_y * ratio, range_y * ratio, 
                                  -range_y, range_y, -100.f, 499.f);
 
   CreateSprite(AssetID::Scene20230226, glm::vec3(0, 0, 0));
+
+  SpriteAndProperty* s = CreateSprite(AssetID::Label20230226,
+  glm::vec3(2, 17, -18));
+//  s->sprite->RotateAroundGlobalAxis(glm::vec3(0,1,0), -10);
+  s->sprite->scale = glm::vec3(0.3);
+
   // 水仙。
   const float r = 40;
   const float scale = 0.5f;
@@ -94,7 +101,7 @@ void AccompanimentScene::Render() {
 
 // 跳
 void AccompanimentScene::Update(float secs) {
-  glm::vec3 p0 = glm::vec3(-30, 22, 30);
+  glm::vec3 p0 = glm::vec3(-20, 14, 20);
   camera.lookdir = glm::normalize(-p0);
 
   glm::vec3 local_x = glm::normalize(glm::cross(-p0, glm::vec3(0, 1, 0)));

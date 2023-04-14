@@ -13,6 +13,7 @@ public:
   glm::vec3 pos;  // 在ChunkIndex中的位置，便于画ChunkIndex时使用
   const static int kSize; // 32
   static unsigned shader_program;
+  static bool verbose;
 
   Chunk();
   Chunk(Chunk& other);

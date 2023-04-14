@@ -319,10 +319,26 @@ OneChunkScene::OneChunkScene() {
   backdrop = new Backdrop(50, 251);
   backdrop->pos = glm::vec3(0, -20, 0);
   // Chunk
-  chunk.LoadDefault();
+  //chunk.LoadDefault();
+
+  for (int y=15; y<=18; y++) {
+    for (int x=15; x<=18; x++) {
+      chunk.SetVoxel(x, y, 29, 120);
+    }
+  }
+  chunk.SetVoxel(16, 16, 30, 120);
+
+  //chunk.SetVoxel(1, 1, 1, 120);
+  //chunk.SetVoxel(2, 1, 1, 120);
+  //chunk.SetVoxel(3, 1, 1, 120);
   Chunk* null_neighs[26] = {};
+  Chunk::verbose = true;
   chunk.BuildBuffers(null_neighs);
+  Chunk::verbose = false;
   MyCheckError("Chunk Build Default");
+  chunk.pos = glm::vec3(-Chunk::kSize/2,
+                        -Chunk::kSize/2,
+                        -Chunk::kSize/2);
 
   projection_matrix = glm::perspective(60.0f*3.14159f/180.0f, WIN_W*1.0f/WIN_H, 0.1f, 499.0f);
 
@@ -347,6 +363,8 @@ OneChunkScene::OneChunkScene() {
   chunksprite = new ChunkSprite(chunkindex);
   chunksprite->pos = glm::vec3(-10, 0, -10);
   chunksprite->RotateAroundGlobalAxis(glm::vec3(1,0,0), 90);
+
+  camera.CrystalBall(glm::vec3(0,10,30));
 }
 
 void OneChunkScene::Render() {
@@ -371,9 +389,9 @@ void OneChunkScene::Render() {
   depth_fbo->Bind();
   glClear(GL_DEPTH_BUFFER_BIT);
   MyCheckError("Clearing Depth Buffer Bit");
-  chunk.Render();
-  chunkindex->Render(glm::vec3(-10, 0, 10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
-  chunksprite->Render();
+  //chunk.Render();
+  //chunkindex->Render(glm::vec3(-10, 0, 10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
+  //chunksprite->Render();
   depth_fbo->Unbind();
   MyCheckError("Render to Depth FBO");
 
@@ -389,9 +407,9 @@ void OneChunkScene::Render() {
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
   backdrop->Render();
-  chunkindex->Render(glm::vec3(-10, 0, 10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
+  //chunkindex->Render(glm::vec3(-10, 0, 10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
   chunk.Render();
-  chunksprite->Render();
+  //chunksprite->Render();
   glBindTexture(GL_TEXTURE_2D, 0);  // Fix "illegal feedback" error detected when using WebGL
   MyCheckError("Chunk render");
 }

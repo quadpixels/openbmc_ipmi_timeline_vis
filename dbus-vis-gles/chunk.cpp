@@ -6,6 +6,7 @@
 const int Chunk::kSize = 32;
 const float Chunk::kL0 = 1.0f;
 unsigned int Chunk::shader_program = 0;
+bool Chunk::verbose = false;
 
 Chunk::Chunk() {
   vbo = tri_count = 0;
@@ -155,14 +156,46 @@ void Chunk::BuildBuffers(Chunk* neighbors[26]) {
                 }
               }
 
+              if (Chunk::verbose) {
+                printf("p0=(%g,%g,%g) p1=(%g,%g,%g) p2=(%g,%g,%g) p3=(%g,%g,%g), ao=(%d,%d,%d,%d)\n",
+                  p0.x, p0.y, p0.z,
+                  p1.x, p1.y, p1.z,
+                  p2.x, p2.y, p2.z,
+                  p3.x, p3.y, p3.z,
+                  ao_0, ao_1, ao_2, ao_3
+                );
+              }
+
               const float verts_xyz[] = {
                 p3.x, p3.y, p3.z, p0.x, p0.y, p0.z, p2.x, p2.y, p2.z,
                 p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, p0.x, p0.y, p0.z
               };
-              int idxes[] = {
-                0,1,2, 3,4,5, 6,7,8, 9,10,11, 12,13,14, 15,16,17,
-                0,1,2, 6,7,8, 3,4,5, 9,10,11, 15,16,17, 12,13,14
+              
+              int idxes0[] = {
+                0,1,2, 3,4,5, 6,7,8, 9,10,11, 12,13,14, 15,16,17, // (p3, p0, p2), (p1, p2, p0)
+                0,1,2, 6,7,8, 3,4,5, 9,10,11, 15,16,17, 12,13,14, // (p3, p2, p0), (p1, p0, p2)
               };
+              int idxes1[] = {
+                3,4,5, 9,10,11, 0,1,2,   0,1,2, 9,10,11, 6,7,8,  // (p0, p1, p3), (p3, p1, p2)
+                3,4,5, 0,1,2,   9,10,11, 0,1,2, 6,7,8,   9,10,11 // (p0, p3, p1), (p3, p2, p1)
+              };
+
+              int ao_factors0[] = {
+                ao_3, ao_0, ao_2, ao_1, ao_2, ao_0,
+                ao_3, ao_2, ao_0, ao_1, ao_0, ao_2
+              };
+              int ao_factors1[] = {
+                ao_0, ao_1, ao_3, ao_3, ao_1, ao_2,
+                ao_0, ao_3, ao_1, ao_3, ao_2, ao_1
+              };
+              int* idxes = idxes0;
+              int* ao_factors = ao_factors0;
+
+              if (ao_0 != ao_2 && ao_1 == ao_3) {
+                idxes = idxes1;
+                ao_factors = ao_factors1;
+              }
+
               for (unsigned i=0; i<18; i++) {
                 tmp_vert[idx_v++] = verts_xyz[idxes[i + d*18]];
               }
@@ -170,10 +203,6 @@ void Chunk::BuildBuffers(Chunk* neighbors[26]) {
                 tmp_norm[idx_n++] = aidx*2 + d;
               }
 
-              int ao_factors[] = {
-                ao_3, ao_0, ao_2, ao_1, ao_2, ao_0,
-                ao_3, ao_2, ao_0, ao_1, ao_0, ao_2
-              };
               for (int i=0; i<6; i++) {
                 tmp_ao[idx_ao++]     = ao_factors[i + d*6];
                 tmp_data[idx_data++] = voxel;
@@ -347,7 +376,7 @@ void Chunk::LoadDefault() {
       for (int z=0; z<kSize; z++) {
         int dx = kSize/2-x, dy=kSize/2-y, dz=kSize/2-z;
         if (dx*dx + dy*dy + dz*dz <= 10*10)
-          block[IX(x,y,z)] = (x*101+y*47+z*119) % 255;
+          block[IX(x,y,z)] = 120;//(x*101+y*47+z*119) % 255;
       }
     }
   }

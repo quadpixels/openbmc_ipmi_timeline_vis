@@ -9,7 +9,6 @@ AccompanimentScene::AccompanimentScene() {
   seconds = 0;
   chunk_assets[AssetID::Scene20230226] = new ChunkGrid("vox/sxqn.vox");
   chunk_assets[AssetID::NarcissusTazetta] = new ChunkGrid("vox/narcissus_tazetta.vox");
-  chunk_assets[AssetID::Label20230226] = new ChunkGrid("vox/label.vox");
   backdrop = new OneChunkScene::Backdrop(200, 251);
   backdrop->pos = glm::vec3(0, -20, 0);
 
@@ -25,11 +24,6 @@ AccompanimentScene::AccompanimentScene() {
                                  -range_y, range_y, -100.f, 499.f);
 
   CreateSprite(AssetID::Scene20230226, glm::vec3(0, 0, 0));
-
-  SpriteAndProperty* s = CreateSprite(AssetID::Label20230226,
-  glm::vec3(2, 17, -18));
-//  s->sprite->RotateAroundGlobalAxis(glm::vec3(0,1,0), -10);
-  s->sprite->scale = glm::vec3(0.3);
 
   // 水仙。
   const float r = 40;

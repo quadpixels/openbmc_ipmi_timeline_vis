@@ -59,4 +59,5 @@ protected:
   int IX(int x, int y, int z) {
     return x*ydim*zdim + y*zdim + z;
   }
+  void FromIX(int ix, int& x, int& y, int& z);
 };

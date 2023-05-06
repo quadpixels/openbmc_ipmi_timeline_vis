@@ -336,7 +336,7 @@ OneChunkScene::OneChunkScene() {
   chunk.BuildBuffers(null_neighs);
   Chunk::verbose = false;
   MyCheckError("Chunk Build Default");
-  chunk.pos = glm::vec3(-Chunk::kSize/2,
+  chunk.pos = glm::vec3(0,//-Chunk::kSize/2,
                         -Chunk::kSize/2,
                         -Chunk::kSize/2);
 
@@ -359,10 +359,28 @@ OneChunkScene::OneChunkScene() {
 
   depth_fbo = new DepthOnlyFBO(WIN_W, WIN_H);
   directional_light = new DirectionalLight(glm::vec3(-1,-3,1), glm::vec3(1,3,-1)*50.0f);
-  chunkindex = new ChunkGrid("vox/openbmc.vox");
+  chunkindex = new ChunkGrid(64, 64, 64);
+
+  const int xxyy[] = { 31, 27 };
+  for (int i=0; i<2; i++) {
+    const int xy0 = xxyy[i];
+    for (int x=xy0-1; x<xy0+2; x++) {
+      for (int y=xy0-1; y<xy0+2; y++) {
+        for (int z=xy0-1; z<xy0+2; z++) {
+          chunkindex->SetVoxel(glm::vec3(x, y, z), 120);
+        }
+      }
+    }
+    chunkindex->SetVoxel(glm::vec3(xy0-2, xy0, xy0), 120);
+    chunkindex->SetVoxel(glm::vec3(xy0+2, xy0, xy0), 120);
+    chunkindex->SetVoxel(glm::vec3(xy0, xy0-2, xy0), 120);
+    chunkindex->SetVoxel(glm::vec3(xy0, xy0+2, xy0), 120);
+    chunkindex->SetVoxel(glm::vec3(xy0, xy0, xy0-2), 120);
+    chunkindex->SetVoxel(glm::vec3(xy0, xy0, xy0+2), 120);
+  }
+
   chunksprite = new ChunkSprite(chunkindex);
-  chunksprite->pos = glm::vec3(-10, 0, -10);
-  chunksprite->RotateAroundGlobalAxis(glm::vec3(1,0,0), 90);
+  chunksprite->pos = glm::vec3(0, 0, -10);
 
   camera.CrystalBall(glm::vec3(0,10,30));
 }
@@ -389,7 +407,7 @@ void OneChunkScene::Render() {
   depth_fbo->Bind();
   glClear(GL_DEPTH_BUFFER_BIT);
   MyCheckError("Clearing Depth Buffer Bit");
-  //chunk.Render();
+  chunk.Render();
   //chunkindex->Render(glm::vec3(-10, 0, 10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
   //chunksprite->Render();
   depth_fbo->Unbind();
@@ -405,17 +423,17 @@ void OneChunkScene::Render() {
   glUniformMatrix4fv(p_loc, 1, false, &P[0][0]);
 
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
+  //glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
   backdrop->Render();
   //chunkindex->Render(glm::vec3(-10, 0, 10), glm::vec3(1,1,1), glm::mat3(1), chunkindex->GetCentroid());
   chunk.Render();
-  //chunksprite->Render();
+  chunksprite->Render();
   glBindTexture(GL_TEXTURE_2D, 0);  // Fix "illegal feedback" error detected when using WebGL
   MyCheckError("Chunk render");
 }
 
 void OneChunkScene::Update(float secs) {
-  chunksprite->RotateAroundGlobalAxis(glm::vec3(0,1,0), 90*secs);
+  chunksprite->RotateAroundGlobalAxis(glm::vec3(0,1,0), 60*secs);
 }
 
 TextureScene::TextureScene() {

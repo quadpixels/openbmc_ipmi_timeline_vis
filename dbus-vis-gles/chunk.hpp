@@ -11,6 +11,7 @@
 class Chunk {
 public:
   glm::vec3 pos;  // 在ChunkIndex中的位置，便于画ChunkIndex时使用
+  int idx;  // 在ChunkIndex::chunks中的位置
   const static int kSize; // 32
   static unsigned shader_program;
   static bool verbose;
@@ -33,6 +34,7 @@ private:
   inline int IX(int x, int y, int z) {
     return kSize * kSize*x + kSize*y + z;
   }
+  void FromIX(int ix, int& x, int& y, int& z);
   int GetOcclusionFactor(const float x0, const float y0, const float z0,
       const int dir, Chunk* neighs[26]);
 };

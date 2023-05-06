@@ -157,12 +157,13 @@ void Chunk::BuildBuffers(Chunk* neighbors[26]) {
               }
 
               if (Chunk::verbose) {
-                printf("p0=(%g,%g,%g) p1=(%g,%g,%g) p2=(%g,%g,%g) p3=(%g,%g,%g), ao=(%d,%d,%d,%d)\n",
+                printf("p0=(%g,%g,%g) p1=(%g,%g,%g) p2=(%g,%g,%g) p3=(%g,%g,%g), ao=(%d,%d,%d,%d), neighbors[0]=%p\n",
                   p0.x, p0.y, p0.z,
                   p1.x, p1.y, p1.z,
                   p2.x, p2.y, p2.z,
                   p3.x, p3.y, p3.z,
-                  ao_0, ao_1, ao_2, ao_3
+                  ao_0, ao_1, ao_2, ao_3,
+                  neighbors[0]
                 );
               }
 
@@ -308,6 +309,14 @@ int Chunk::GetOcclusionFactor(const float x0, const float y0, const float z0, co
           if (neighs[0] && neighs[0]->block[IX(0, y1, z1)]) occ++;
         } else {
           if (neighs[9] && neighs[9]->block[IX(0, y1, 0)]) occ++;
+        }
+      } else {
+        if (z1 < 0) {
+          if (neighs[8] && neighs[8]->block[IX(x1, 0, kSize-1)]) occ++;
+        } else if (z1 < kSize) {
+          if (neighs[7] && neighs[7]->block[IX(x1, 0, z1)]) occ++;
+        } else {
+          if (neighs[6] && neighs[6]->block[IX(x1, 0, 0)]) occ++;
         }
       }
     } else if (x1 >= 0) { // Cases [2:5], [14:17]

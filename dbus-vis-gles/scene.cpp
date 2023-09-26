@@ -501,8 +501,10 @@ TextureScene::TextureScene() {
   glBindTexture(GL_TEXTURE_2D, 0);
 
   // 3. FBO to draw to the screen.
+  use_depth_fbo2 = true;
   basic_fbo = new BasicFBO(WIN_W, WIN_H);
   depth_fbo = new DepthOnlyFBO(WIN_W, WIN_H);
+  depth_fbo2 = new DepthOnlyFBO2(WIN_W, WIN_H);
 }
 
 void TextureScene::Render() {
@@ -514,11 +516,21 @@ void TextureScene::Render() {
   }
 
   {
-    depth_fbo->Bind();
+    {
+      if (use_depth_fbo2) depth_fbo2->Bind();
+      else depth_fbo->Bind();
+    }
     glClear(GL_DEPTH_BUFFER_BIT);
+    glClearDepthf(1.0f);
     glEnable(GL_DEPTH_TEST);
     g_hellotriangle->Render();
-    depth_fbo->Unbind();
+    {
+      if (use_depth_fbo2) {
+        depth_fbo2->ReadDepthBufferIntoTexture();
+        depth_fbo2->Unbind();
+      }
+      else depth_fbo->Unbind();
+    }
   }
 
   glBindBuffer(GL_ARRAY_BUFFER, vbo_tex);
@@ -545,7 +557,10 @@ void TextureScene::Render() {
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
   glViewport(WIN_W/2, WIN_H/2, WIN_W/2, WIN_H/2);
-  glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
+  {
+    if (use_depth_fbo2) glBindTexture(GL_TEXTURE_2D, depth_fbo2->tex);
+    else glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
+  }
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);

@@ -99,7 +99,9 @@ public:
   unsigned int shader_program;
 
   BasicFBO* basic_fbo;
-  DepthOnlyFBO* depth_fbo;
+  bool use_depth_fbo2;
+  DepthOnlyFBO* depth_fbo;  // FBO backed by Texture
+  DepthOnlyFBO2* depth_fbo2;  // FBO backed by RenderBuffer
 
   TextureScene();
   void Render();

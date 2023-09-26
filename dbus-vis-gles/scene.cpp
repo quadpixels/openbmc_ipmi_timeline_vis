@@ -75,7 +75,7 @@ void HelloTriangleScene::Render() {
   glDisableVertexAttribArray(0);
   glDisableVertexAttribArray(1);
   glUseProgram(0);
-  MyCheckError("Render");
+  MyCheckError("HelloTriangleScene::Render");
 }
 
 PaletteScene::PaletteScene() {
@@ -265,6 +265,7 @@ void RotatingCubeScene::Render() {
   glUniformMatrix4fv(m_loc, 1, false, &M[0][0]);
   glUniformMatrix4fv(v_loc, 1, false, &V[0][0]);
   glUniformMatrix4fv(p_loc, 1, false, &P[0][0]);
+  MyCheckError("Before rendering cubes");
   glDrawElements(GL_LINES, positions.size()*2, GL_UNSIGNED_INT, 0);
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -440,6 +441,8 @@ TextureScene::TextureScene() {
   // 1. Shader, VBO, EBO
   shader_program = BuildShaderProgram("shaders/simple_texture.vs", "shaders/simple_texture.fs");
   MyCheckError("build TextureScene shaders");
+  shader_program_stencil = BuildShaderProgram("shaders/simple_texture.vs", "shaders/simple_texture_stencil.fs");
+  MyCheckError("build TextureScene shaders_stencil");
 
   float verts[] = {
     -1,  1, 0, 0, 1,
@@ -501,10 +504,11 @@ TextureScene::TextureScene() {
   glBindTexture(GL_TEXTURE_2D, 0);
 
   // 3. FBO to draw to the screen.
-  use_depth_fbo2 = true;
+  fbo_mode = 2;
   basic_fbo = new BasicFBO(WIN_W, WIN_H);
   depth_fbo = new DepthOnlyFBO(WIN_W, WIN_H);
   depth_fbo2 = new DepthOnlyFBO2(WIN_W, WIN_H);
+  depth_stencil_fbo = new DepthStencilFBO(WIN_W, WIN_H);
 }
 
 void TextureScene::Render() {
@@ -516,20 +520,50 @@ void TextureScene::Render() {
   }
 
   {
-    {
-      if (use_depth_fbo2) depth_fbo2->Bind();
-      else depth_fbo->Bind();
+    switch (fbo_mode) {
+      case 0: depth_fbo->Bind(); break;
+      case 1: depth_fbo2->Bind(); break;
+      case 2: depth_stencil_fbo->Bind(); break;
     }
-    glClear(GL_DEPTH_BUFFER_BIT);
+    MyCheckError("Bind FBO");
+
+    glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    MyCheckError("Clear FBO 1");
     glClearDepthf(1.0f);
+    MyCheckError("Clear FBO 2");
     glEnable(GL_DEPTH_TEST);
-    g_hellotriangle->Render();
-    {
-      if (use_depth_fbo2) {
+    MyCheckError("Clear FBO 3");
+
+    glEnable(GL_STENCIL_TEST);
+    glClearStencil(0);
+    glStencilFunc(GL_ALWAYS, 0, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+
+    switch (fbo_mode) {
+      case 0: case 1:
+        g_hellotriangle->Render(); break;
+      case 2:
+        glDisable(GL_DEPTH_TEST);
+        const double sec = glfwGetTime();
+        const int N = 1+(int(sec / 0.25)) % 255;
+        for (int i=0; i<N; i++) {
+          g_hellotriangle->Render();  // Stencil increments N times
+        }
+        break;
+    }
+
+    glDisable(GL_STENCIL_TEST);
+
+    switch (fbo_mode) {
+      case 0: depth_fbo->Unbind(); break;
+      case 1:
         depth_fbo2->ReadDepthBufferIntoTexture();
         depth_fbo2->Unbind();
-      }
-      else depth_fbo->Unbind();
+        break;
+      case 2:
+        depth_stencil_fbo->ReadBuffersIntoTexture();
+        depth_stencil_fbo->Unbind();
+        break;
     }
   }
 
@@ -557,9 +591,18 @@ void TextureScene::Render() {
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
   glViewport(WIN_W/2, WIN_H/2, WIN_W/2, WIN_H/2);
-  {
-    if (use_depth_fbo2) glBindTexture(GL_TEXTURE_2D, depth_fbo2->tex);
-    else glBindTexture(GL_TEXTURE_2D, depth_fbo->tex);
+  
+  switch (fbo_mode) {
+    case 0: glBindTexture(GL_TEXTURE_2D, depth_fbo->tex); break;
+    case 1: glBindTexture(GL_TEXTURE_2D, depth_fbo2->tex); break;
+    case 2: {
+      #ifndef USE_ALTERNATIVE_WAY_TO_DRAW_STENCIL
+      glUseProgram(shader_program_stencil);
+      glBindTexture(GL_TEXTURE_2D, depth_stencil_fbo->stencil_tex); break;  // D24S8 in this case
+      #else
+      glBindTexture(GL_TEXTURE_2D, depth_stencil_fbo->stencil_tex); break;  // RGBA8 in this case
+      #endif
+    }
   }
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 

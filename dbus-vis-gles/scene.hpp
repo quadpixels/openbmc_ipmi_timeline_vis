@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
-#define GLFW_INCLUDE_ES2
+#define GLFW_INCLUDE_ES3
 #include <GLFW/glfw3.h>
 
 #include "animator.hpp"
@@ -97,11 +97,13 @@ public:
   unsigned int tex; // The texture to be drawn
   unsigned int depth_buffer_tex;
   unsigned int shader_program;
+  unsigned int shader_program_stencil;
 
   BasicFBO* basic_fbo;
-  bool use_depth_fbo2;
+  int fbo_mode;
   DepthOnlyFBO* depth_fbo;  // FBO backed by Texture
   DepthOnlyFBO2* depth_fbo2;  // FBO backed by RenderBuffer
+  DepthStencilFBO* depth_stencil_fbo;  // FBO with depth-stencil, stencil will be on the top-left
 
   TextureScene();
   void Render();

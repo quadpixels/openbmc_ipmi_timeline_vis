@@ -64,11 +64,13 @@ main_gles.js: main_gles.cpp util.cpp scene.cpp camera.cpp chunk.cpp rendertarget
 		--preload-file shaders/palettescene.vs \
 		--preload-file shaders/simple_texture.vs \
 		--preload-file shaders/simple_texture.fs \
+		--preload-file shaders/simple_texture_stencil.fs \
 		--preload-file shaders/vert_mvp_palette.vs \
 		--preload-file shaders/vert_norm_data_ao.fs \
 		--preload-file shaders/vert_norm_data_ao.vs \
 		--preload-file shaders/draw_lines.fs \
-		--preload-file shaders/draw_lines.vs
+		--preload-file shaders/draw_lines.vs \
+		--preload-file shaders/quad.vs
 
 clean:
 	@for x in util.o scene.o rendertarget.o chunk.o camera.o\

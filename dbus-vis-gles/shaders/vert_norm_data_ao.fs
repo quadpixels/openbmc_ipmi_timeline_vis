@@ -2,9 +2,9 @@
 
 precision mediump float;
 
-in vec3 vert_color;
-in vec3 normal;
-in vec4 frag_pos_lightspace;
+layout (location=0) in vec3 vert_color;
+layout (location=1) in vec3 normal;
+layout (location=2) in vec4 frag_pos_lightspace;
 
 out     vec4 color;
 uniform vec3 dir_light;
